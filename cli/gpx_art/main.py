@@ -6,8 +6,10 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import List
 
+from gpx_art.exporters import Exporter, ExportError
 from gpx_art.models import Route
 from gpx_art.parsers import GPXParser
+from gpx_art.visualizer import RouteVisualizer
 
 # Define the package version - will be used in the CLI's version option
 try:
@@ -25,10 +27,78 @@ def cli():
 
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
-@click.option("--output", "-o", type=click.Path(), help="Output file path")
-def convert(input_file, output):
+@click.argument("output_file", type=click.Path())
+@click.option("--color", default="#000000", help="Line color in hex format")
+@click.option(
+    "--thickness",
+    type=click.Choice(["thin", "medium", "thick"]),
+    default="medium",
+    help="Line thickness"
+)
+@click.option(
+    "--dpi",
+    type=int,
+    default=300,
+    help="Output resolution in dots per inch"
+)
+def convert(input_file, output_file, color, thickness, dpi):
     """Convert GPX file to artwork."""
-    click.echo("Convert command not implemented")
+    # Validate output file extension
+    if not output_file.lower().endswith('.png'):
+        click.secho("Error: Output file must have .png extension", fg="red")
+        sys.exit(1)
+    
+    # Parse GPX file
+    click.echo("Parsing GPX file...")
+    parser = GPXParser(input_file)
+    gpx = parser.parse()
+    
+    if not gpx:
+        click.secho(f"Error: {parser.get_error()}", fg="red")
+        sys.exit(1)
+    
+    # Convert to internal model
+    route = parser.to_route(gpx)
+    
+    # Create visualizer
+    click.echo("Rendering route...")
+    visualizer = RouteVisualizer(route)
+    visualizer.create_figure()
+    visualizer.render_route(color=color, thickness=thickness)
+    
+    # Export to PNG
+    click.echo("Exporting PNG...")
+    exporter = Exporter()
+    
+    try:
+        exporter.export_png(
+            figure=visualizer.get_figure(),
+            output_path=output_file,
+            dpi=dpi
+        )
+    except ExportError as e:
+        click.secho(f"Error: {str(e)}", fg="red")
+        sys.exit(1)
+    
+    # Show success message
+    click.secho(
+        f"\n✓ Conversion complete! Output saved to:",
+        fg="green", bold=True
+    )
+    click.echo(f"{click.format_filename(os.path.abspath(output_file))}")
+    
+    # Show file information
+    size_bytes = os.path.getsize(output_file)
+    size_kb = size_bytes / 1024
+    size_mb = size_kb / 1024
+    
+    if size_mb >= 1:
+        size_str = f"{size_mb:.2f} MB"
+    else:
+        size_str = f"{size_kb:.2f} KB"
+    
+    click.echo(f"Size: {size_str} ({size_bytes:,} bytes)")
+    click.echo(f"Resolution: {dpi} DPI")
 
 
 def validate_coordinates(route: Route) -> List[str]:

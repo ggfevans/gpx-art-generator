@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" 
+     creator="GPX Art Generator Sample" 
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+
+  <metadata>
+    <name>Sample Hiking Route</name>
+    <desc>A sample hiking route for testing GPX Art Generator</desc>
+    <author>
+      <name>GPX Art Generator Team</name>
+    </author>
+    <time>2023-05-01T08:00:00Z</time>
+    <keywords>sample, test, hiking</keywords>
+  </metadata>
+
+  <trk>
+    <name>Mount Demo Trail</name>
+    <desc>A scenic route through virtual mountains</desc>
+    <trkseg>
+      <!-- First segment: Ascent -->
+      <trkpt lat="37.7300" lon="-122.4800">
+        <ele>100</ele>
+        <time>2023-05-01T08:00:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7305" lon="-122.4805">
+        <ele>120</ele>
+        <time>2023-05-01T08:05:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7310" lon="-122.4810">
+        <ele>150</ele>
+        <time>2023-05-01T08:10:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7315" lon="-122.4815">
+        <ele>200</ele>
+        <time>2023-05-01T08:15:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7320" lon="-122.4820">
+        <ele>250</ele>
+        <time>2023-05-01T08:20:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7325" lon="-122.4825">
+        <ele>300</ele>
+        <time>2023-05-01T08:25:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7330" lon="-122.4830">
+        <ele>350</ele>
+        <time>2023-05-01T08:30:00Z</time>
+      </trkpt>
+    </trkseg>
+    <trkseg>
+      <!-- Second segment: Descent after break -->
+      <trkpt lat="37.7335" lon="-122.4835">
+        <ele>349</ele>
+        <time>2023-05-01T09:00:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7340" lon="-122.4840">
+        <ele>320</ele>
+        <time>2023-05-01T09:05:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7345" lon="-122.4845">
+        <ele>280</ele>
+        <time>2023-05-01T09:10:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7350" lon="-122.4850">
+        <ele>250</ele>
+        <time>2023-05-01T09:15:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7355" lon="-122.4855">
+        <ele>200</ele>
+        <time>2023-05-01T09:20:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7360" lon="-122.4860">
+        <ele>150</ele>
+        <time>2023-05-01T09:25:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7365" lon="-122.4865">
+        <ele>110</ele>
+        <time>2023-05-01T09:30:00Z</time>
+      </trkpt>
+      <trkpt lat="37.7370" lon="-122.4870">
+        <ele>105</ele>
+        <time>2023-05-01T09:35:00Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
+
