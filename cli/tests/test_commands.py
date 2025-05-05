@@ -326,6 +326,58 @@ def test_convert_with_options(runner, valid_gpx_file, tmp_path):
 
 
 @pytest.mark.skipif(os.environ.get("CI") == "true", reason="Requires graphical libraries")
+def test_convert_with_markers(runner, valid_gpx_file, tmp_path):
+    """Test conversion with distance markers."""
+    output_file = str(tmp_path / "output.png")
+    
+    # Run with marker options
+    result = runner.invoke(convert, [
+        valid_gpx_file,
+        output_file,
+        "--markers",
+        "--markers-unit", "km",
+        "--marker-interval", "0.5",
+        "--marker-size", "8",
+        "--marker-color", "blue",
+        "--label-font-size", "10"
+    ])
+    
+    # Check command result
+    assert result.exit_code == 0
+    assert "Markers:" in result.output
+    assert "Unit: km" in result.output
+    assert "Interval: 0.5 km" in result.output
+    assert "Color: blue" in result.output
+    
+    # Check that file was created
+    assert os.path.exists(output_file)
+
+
+@pytest.mark.skipif(os.environ.get("CI") == "true", reason="Requires graphical libraries")
+def test_convert_with_overlay(runner, valid_gpx_file, tmp_path):
+    """Test conversion with information overlay."""
+    output_file = str(tmp_path / "output.png")
+    
+    # Run with overlay options
+    result = runner.invoke(convert, [
+        valid_gpx_file,
+        output_file,
+        "--overlay", "distance,name,elevation",
+        "--overlay-position", "top-right",
+        "--font-size", "12",
+        "--font-color", "blue",
+        "--background",
+        "--bg-color", "white",
+        "--bg-alpha", "0.8"
+    ])
+    
+    # Check command result
+    assert result.exit_code == 0
+    assert "Overlay:" in result.output
+    assert "Fields: distance,name,elevation"
+
+
+@pytest.mark.skipif(os.environ.get("CI") == "true", reason="Requires graphical libraries")
 def test_convert_different_dpi(runner, valid_gpx_file, tmp_path):
     """Test that different DPI settings produce different file sizes."""
     low_dpi_file = str(tmp_path / "low_dpi.png")

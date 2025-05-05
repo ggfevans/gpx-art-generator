@@ -28,7 +28,7 @@ def cli():
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
 @click.argument("output_file", type=click.Path())
-@click.option("--color", default="#000000", help="Line color in hex format")
+@click.option("--color", default="#000000", help="Line color in hex format or named color")
 @click.option(
     "--thickness",
     type=click.Choice(["thin", "medium", "thick"]),
@@ -36,17 +36,107 @@ def cli():
     help="Line thickness"
 )
 @click.option(
+    "--style",
+    type=click.Choice(["solid", "dashed"]),
+    default="solid",
+    help="Line style"
+)
+@click.option(
     "--dpi",
     type=int,
     default=300,
-    help="Output resolution in dots per inch"
+    help="Output resolution in dots per inch (PNG only)"
 )
-def convert(input_file, output_file, color, thickness, dpi):
-    """Convert GPX file to artwork."""
-    # Validate output file extension
-    if not output_file.lower().endswith('.png'):
-        click.secho("Error: Output file must have .png extension", fg="red")
-        sys.exit(1)
+@click.option(
+    "--format",
+    "formats",
+    help="Output formats (comma-separated: png,svg,pdf). Defaults to file extension."
+)
+@click.option(
+    "--page-size",
+    type=click.Choice([
+        "letter", "a4", 
+        "square-small", "square-medium", "square-large",
+        "landscape-small", "landscape-medium", "landscape-large"
+    ]),
+    default="letter",
+    help="Page size for PDF output"
+)
+@click.option(
+    "--markers/--no-markers",
+    default=False,
+    help="Add distance markers along the route"
+)
+@click.option(
+    "--markers-unit",
+    type=click.Choice(["miles", "km"]),
+    default="miles",
+    help="Unit for distance markers"
+)
+@click.option(
+    "--marker-interval",
+    type=float,
+    help="Distance between markers in the specified unit (defaults to 1.0)"
+)
+@click.option(
+    "--marker-size",
+    type=float,
+    default=6.0,
+    help="Size of the marker points"
+)
+@click.option(
+    "--marker-color",
+    help="Color of markers (defaults to route color)"
+)
+@click.option(
+    "--label-font-size",
+    type=int,
+    default=8,
+    help="Font size for distance labels"
+)
+@click.option(
+    "--overlay",
+    help="Information to overlay (comma-separated: distance,duration,elevation,name,date)"
+)
+@click.option(
+    "--overlay-position",
+    type=click.Choice(["top-left", "top-right", "bottom-left", "bottom-right"]),
+    default="top-left",
+    help="Position of the information overlay"
+)
+@click.option(
+    "--font-size",
+    type=int,
+    default=10,
+    help="Font size for overlay text"
+)
+@click.option(
+    "--font-color",
+    default="black",
+    help="Color for overlay text"
+)
+@click.option(
+    "--background/--no-background",
+    default=True,
+    help="Add background box to overlay"
+)
+@click.option(
+    "--bg-color",
+    default="white",
+    help="Color for overlay background"
+)
+@click.option(
+    "--bg-alpha",
+    type=float,
+    default=0.7,
+    help="Transparency of overlay background (0-1)"
+)
+def convert(
+    input_file, output_file, color, thickness, style, dpi, formats, page_size,
+    markers, markers_unit, marker_interval, marker_size, marker_color, label_font_size,
+    overlay, overlay_position, font_size, font_color, background, bg_color, bg_alpha
+):
+    """Convert GPX file to artwork in PNG, SVG, or PDF format."""
     
     # Parse GPX file
     click.echo("Parsing GPX file...")
@@ -64,41 +154,143 @@ def convert(input_file, output_file, color, thickness, dpi):
     click.echo("Rendering route...")
     visualizer = RouteVisualizer(route)
     visualizer.create_figure()
-    visualizer.render_route(color=color, thickness=thickness)
-    
-    # Export to PNG
-    click.echo("Exporting PNG...")
-    exporter = Exporter()
     
     try:
-        exporter.export_png(
-            figure=visualizer.get_figure(),
-            output_path=output_file,
-            dpi=dpi
+        # Render the route
+        visualizer.render_route(
+            color=color,
+            thickness=thickness,
+            line_style=style
         )
-    except ExportError as e:
+        
+        # Add distance markers if requested
+        if markers:
+            try:
+                visualizer.add_distance_markers(
+                    unit=markers_unit,
+                    interval=marker_interval,
+                    marker_size=marker_size,
+                    marker_color=marker_color,
+                    show_labels=True,
+                    label_font_size=label_font_size
+                )
+            except ValueError as e:
+                click.secho(f"Error adding markers: {str(e)}", fg="red")
+                click.echo("Continuing without markers...")
+                
+        # Add information overlay if requested
+        if overlay:
+            try:
+                # Parse overlay fields
+                overlay_fields = [field.strip() for field in overlay.split(',')]
+                
+                visualizer.add_overlay(
+                    fields=overlay_fields,
+                    position=overlay_position,
+                    font_size=font_size,
+                    font_color=font_color,
+                    background=background,
+                    bg_color=bg_color,
+                    bg_alpha=bg_alpha
+                )
+            except ValueError as e:
+                click.secho(f"Error adding overlay: {str(e)}", fg="red")
+                click.echo("Continuing without overlay...")
+    except ValueError as e:
         click.secho(f"Error: {str(e)}", fg="red")
         sys.exit(1)
     
-    # Show success message
-    click.secho(
-        f"\n✓ Conversion complete! Output saved to:",
-        fg="green", bold=True
-    )
-    click.echo(f"{click.format_filename(os.path.abspath(output_file))}")
+    # Determine export formats
+    exporter = Exporter()
+    output_path = Path(output_file)
     
-    # Show file information
-    size_bytes = os.path.getsize(output_file)
-    size_kb = size_bytes / 1024
-    size_mb = size_kb / 1024
-    
-    if size_mb >= 1:
-        size_str = f"{size_mb:.2f} MB"
+    # If formats are explicitly provided, use those
+    if formats:
+        format_list = [f.strip() for f in formats.split(',')]
+        try:
+            click.echo(f"Exporting to {', '.join(format_list)} formats...")
+            exported_files = exporter.export_multiple(
+                figure=visualizer.get_figure(),
+                base_path=output_path.with_suffix(''),  # Remove extension for base path
+                formats=format_list,
+                dpi=dpi,
+                page_size=page_size
+            )
+        except ExportError as e:
+            click.secho(f"Error: {str(e)}", fg="red")
+            sys.exit(1)
     else:
-        size_str = f"{size_kb:.2f} KB"
+        # Otherwise, determine format from file extension
+        try:
+            export_format = exporter.get_format(output_path)
+            format_name = export_format.name.lower()
+            click.echo(f"Exporting {format_name.upper()}...")
+            
+            # Export based on detected format
+            if export_format == ExportFormat.PNG:
+                exporter.export_png(
+                    figure=visualizer.get_figure(),
+                    output_path=output_path,
+                    dpi=dpi
+                )
+            elif export_format == ExportFormat.SVG:
+                exporter.export_svg(
+                    figure=visualizer.get_figure(),
+                    output_path=output_path
+                )
+            elif export_format == ExportFormat.PDF:
+                exporter.export_pdf(
+                    figure=visualizer.get_figure(),
+                    output_path=output_path,
+                    page_size=page_size
+                )
+            
+            exported_files = [output_path]
+            
+        except ExportError as e:
+            click.secho(f"Error: {str(e)}", fg="red")
+            sys.exit(1)
     
-    click.echo(f"Size: {size_str} ({size_bytes:,} bytes)")
-    click.echo(f"Resolution: {dpi} DPI")
+    
+    # Show style information
+    style_info = []
+    if color.startswith('#'):
+        style_info.append(f"Color: {color}")
+    else:
+        style_info.append(f"Color: {color}")
+    style_info.append(f"Thickness: {thickness}")
+    style_info.append(f"Style: {style}")
+    
+    click.echo(f"Style: {', '.join(style_info)}")
+    
+    # Show marker information if enabled
+    if markers:
+        marker_info = []
+        marker_info.append(f"Unit: {markers_unit}")
+        if marker_interval:
+            marker_info.append(f"Interval: {marker_interval} {markers_unit}")
+        else:
+            marker_info.append(f"Interval: 1.0 {markers_unit}")  # Default
+        if marker_color:
+            marker_info.append(f"Color: {marker_color}")
+        marker_info.append(f"Size: {marker_size}")
+        marker_info.append(f"Label size: {label_font_size}")
+        
+        click.echo(f"Markers: {', '.join(marker_info)}")
+        
+    # Show overlay information if enabled
+    if overlay:
+        overlay_info = []
+        overlay_info.append(f"Fields: {overlay}")
+        overlay_info.append(f"Position: {overlay_position}")
+        overlay_info.append(f"Font size: {font_size}")
+        overlay_info.append(f"Font color: {font_color}")
+        overlay_info.append(f"Background: {'On' if background else 'Off'}")
+        if background:
+            overlay_info.append(f"BG color: {bg_color}")
+            overlay_info.append(f"BG alpha: {bg_alpha}")
+        
+        click.echo(f"Overlay: {', '.join(overlay_info)}")
 
 
 def validate_coordinates(route: Route) -> List[str]:

@@ -245,9 +245,420 @@ def test_render_auto_creates_figure(simple_route):
     assert isinstance(figure, Figure)
 
 
+# Tests for OverlayFormatter
+
+def test_overlay_formatter_distance():
+    """Test distance formatting in OverlayFormatter."""
+    from gpx_art.visualizer import OverlayFormatter
+    
+    # Test with zero
+    assert "0.0 km (0.0 miles)" in OverlayFormatter.format_distance(0)
+    
+    # Test with positive value
+    distance_m = 5000  # 5 km
+    formatted = OverlayFormatter.format_distance(distance_m)
+    assert "5.0 km" in formatted
+    assert "3.1 miles" in formatted
+
+
+def test_overlay_formatter_duration():
+    """Test duration formatting in OverlayFormatter."""
+    from gpx_art.visualizer import OverlayFormatter
+    from datetime import timedelta
+    
+    # Test with None
+    assert "Unknown" in OverlayFormatter.format_duration(None)
+    
+    # Test with zero
+    assert "0m" in OverlayFormatter.format_duration(timedelta(seconds=0))
+    
+    # Test with complex duration
+    duration = timedelta(days=1, hours=2, minutes=30, seconds=15)
+    formatted = OverlayFormatter.format_duration(duration)
+    assert "1d" in formatted
+    assert "2h" in formatted
+    assert "30m" in formatted
+    
+    # Test with just seconds
+    seconds_only = timedelta(seconds=45)
+    assert "45s" in OverlayFormatter.format_duration(seconds_only)
+
+
+def test_overlay_formatter_elevation():
+    """Test elevation formatting in OverlayFormatter."""
+    from gpx_art.visualizer import OverlayFormatter
+    
+    # Test with None
+    assert "No elevation data" in OverlayFormatter.format_elevation(None)
+    
+    # Test with stats
+    stats = {
+        'min': 100.0,
+        'max': 500.0,
+        'gain': 450.0,
+        'loss': 50.0
+    }
+    formatted = OverlayFormatter.format_elevation(stats)
+    assert "100" in formatted
+    assert "500" in formatted
+    assert "450m" in formatted
+    assert "50m" in formatted
+
+
+def test_overlay_formatter_name():
+    """Test name formatting in OverlayFormatter."""
+    from gpx_art.visualizer import OverlayFormatter
+    
+    # Test with None
+    assert "Unnamed route" in OverlayFormatter.format_name(None)
+    
+    # Test with empty string
+    assert "Unnamed route" in OverlayFormatter.format_name("")
+    
+    # Test with short name
+    assert "Test Route" == OverlayFormatter.format_name("Test Route")
+    
+    # Test with very long name (should be truncated)
+    long_name = "This is an extremely long route name that should be truncated in the formatting process"
+    formatted = OverlayFormatter.format_name(long_name)
+    assert "..." in formatted
+    assert len(formatted) < len(long_name)
+
+
+def test_overlay_formatter_date():
+    """Test date formatting in OverlayFormatter."""
+    from gpx_art.visualizer import OverlayFormatter
+    from datetime import datetime
+    
+    # Test with None
+    assert "No date" in OverlayFormatter.format_date(None)
+    
+    # Test with date
+    date = datetime(2023, 5, 15, 12, 30, 45)
+    formatted = OverlayFormatter.format_date(date)
+    assert "2023-05-15" in formatted
+
+
+# Tests for overlay functionality
+
+def test_add_overlay_basic(simple_route):
+    """Test adding basic overlay to figure."""
+    from gpx_art.visualizer import OverlayField
+    
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route()
+    
+    # Add basic overlay
+    visualizer.add_overlay(fields=[OverlayField.DISTANCE, OverlayField.NAME])
+    
+    # Check that text was added (can't easily check content)
+    ax = visualizer.get_figure().axes[0]
+    texts = ax.texts
+    assert len(texts) > 0
+
+
+def test_add_overlay_with_string_fields(simple_route):
+    """Test adding overlay with string field names."""
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route()
+    
+    # Add overlay with string fields
+    visualizer.add_overlay(fields=["distance", "name"])
+    
+    # Check that text was added
+    ax = visualizer.get_figure().axes[0]
+    texts = ax.texts
+    assert len(texts) > 0
+
+
+def test_add_overlay_positions(simple_route):
+    """Test different overlay positions."""
+    from gpx_art.visualizer import OverlayPosition
+    
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route()
+    
+    # Test each position
+    positions = [
+        OverlayPosition.TOP_LEFT,
+        OverlayPosition.TOP_RIGHT,
+        OverlayPosition.BOTTOM_LEFT,
+        OverlayPosition.BOTTOM_RIGHT
+    ]
+    
+    for position in positions:
+        # Create new figure for each test
+        visualizer.create_figure()
+        visualizer.render_route()
+        
+        # Add overlay with this position
+        visualizer.add_overlay(
+            fields=["distance"],
+            position=position
+        )
+        
+        # Check that text was added
+        ax = visualizer.get_figure().axes[0]
+        texts = ax.texts
+        assert len(texts) > 0
+        
+        # Could check text alignment but that's implementation-specific
+
+
+def test_overlay_position_from_string():
+    """Test converting string position to enum."""
+    from gpx_art.visualizer import OverlayPosition
+    
+    # Test valid positions
+    assert OverlayPosition.from_string("top-left") == OverlayPosition.TOP_LEFT
+    assert OverlayPosition.from_string("top_left") == OverlayPosition.TOP_LEFT
+    assert OverlayPosition.from_string("TOP-LEFT") == OverlayPosition.TOP_LEFT
+    
+    # Test invalid position
+    with pytest.raises(ValueError):
+        OverlayPosition.from_string("invalid-position")
+
+
+def test_overlay_field_from_string():
+    """Test converting string field to enum."""
+    from gpx_art.visualizer import OverlayField
+    
+    # Test valid fields
+    assert OverlayField.from_string("distance") == OverlayField.DISTANCE
+    assert OverlayField.from_string("DISTANCE") == OverlayField.DISTANCE
+    
+    # Test invalid field
+    with pytest.raises(ValueError):
+        OverlayField.from_string("invalid-field")
+
+
+def test_add_overlay_styling(simple_route):
+    """Test overlay styling options."""
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route()
+    
+    # Add overlay with custom styling
+    visualizer.add_overlay(
+        fields=["distance"],
+        font_size=12,
+        font_color="red",
+        background=True,
+        bg_color="yellow",
+        bg_alpha=0.5
+    )
+    
+    # Check that text was added with properties
+    ax = visualizer.get_figure().axes[0]
+    text = ax.texts[0]
+    
+    assert text.get_fontsize() == 12
+    assert text.get_color() == "red"
+    assert text.get_bbox() is not None  # Has background
+    assert text.get_bbox().get_facecolor()[0:3] == (1.0, 1.0, 0.0)  # yellow
+    assert text.get_bbox().get_alpha() == 0.5
+
+
+def test_add_overlay_no_background(simple_route):
+    """Test overlay without background."""
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route()
+    
+    # Add overlay without background
+    visualizer.add_overlay(
+        fields=["distance"],
+        background=False
+    )
+    
+    # Check text properties
+    ax = visualizer.get_figure().axes[0]
+    text = ax.texts[0]
+    
+    # Should have no background or an invisible one
+    bbox = text.get_bbox()
+    if bbox is not None:
+        # If bbox exists, it should be invisible
+        assert bbox.get_alpha() == 0 or bbox.get_facecolor()[3] == 0
+
+
+def test_add_overlay_errors(simple_route):
+    """Test error conditions for add_overlay."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    # Should fail without a figure
+    with pytest.raises(ValueError):
+        visualizer.add_overlay(fields=["distance"])
+        
+    # Create figure for remaining tests
+    visualizer.create_figure()
+    
+    # Should fail with invalid field
+    with pytest.raises(ValueError):
+        visualizer.add_overlay(fields=["invalid-field"])
+        
+    # Should fail with invalid position
+    with pytest.raises(ValueError):
+        visualizer.add_overlay(fields=["distance"], position="invalid-position")
+
+
 def test_thickness_map():
     """Test the thickness map values."""
     assert RouteVisualizer.thickness_map['thin'] == 0.5
     assert RouteVisualizer.thickness_map['medium'] == 1.0
     assert RouteVisualizer.thickness_map['thick'] == 2.0
+
+
+def test_style_map():
+    """Test the style map values."""
+    assert RouteVisualizer.style_map['solid'] == '-'
+    assert RouteVisualizer.style_map['dashed'] == '--'
+
+
+def test_unit_factors():
+    """Test the unit conversion factors."""
+    assert RouteVisualizer._UNIT_FACTORS['km'] == 0.001
+    assert RouteVisualizer._UNIT_FACTORS['miles'] == 0.000621371
+
+
+# Tests for style validation
+
+def test_validate_color_valid_hex(simple_route):
+    """Test that valid hex colors are accepted."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    # Standard 6-digit hex
+    assert visualizer._validate_color('#000000') == '#000000'
+    assert visualizer._validate_color('#FFFFFF') == '#FFFFFF'
+    assert visualizer._validate_color('#ff00ff') == '#ff00ff'
+    
+    # Shorthand 3-digit hex
+    assert visualizer._validate_color('#000') == '#000'
+    assert visualizer._validate_color('#FFF') == '#FFF'
+    assert visualizer._validate_color('#f0f') == '#f0f'
+
+
+def test_validate_color_invalid_hex(simple_route):
+    """Test that invalid hex colors are rejected."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    with pytest.raises(ValueError) as exc_info:
+        visualizer._validate_color('#12345')  # Wrong length
+    assert "Invalid hex color code" in str(exc_info.value)
+    
+    with pytest.raises(ValueError) as exc_info:
+        visualizer._validate_color('#GHIJKL')  # Invalid characters
+    assert "Invalid hex color code" in str(exc_info.value)
+    
+    with pytest.raises(ValueError) as exc_info:
+        visualizer._validate_color('##000000')  # Double #
+    assert "Invalid hex color code" in str(exc_info.value)
+
+
+def test_validate_color_named_colors(simple_route):
+    """Test that named colors pass validation."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    # Named colors should pass validation
+    assert visualizer._validate_color('red') == 'red'
+    assert visualizer._validate_color('blue') == 'blue'
+    assert visualizer._validate_color('green') == 'green'
+
+
+def test_validate_thickness_valid(simple_route):
+    """Test that valid thickness values are accepted."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    assert visualizer._validate_thickness('thin') == 0.5
+    assert visualizer._validate_thickness('medium') == 1.0
+    assert visualizer._validate_thickness('thick') == 2.0
+
+
+def test_validate_thickness_invalid(simple_route):
+    """Test that invalid thickness values are rejected."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    with pytest.raises(ValueError) as exc_info:
+        visualizer._validate_thickness('super-thick')
+    assert "Invalid thickness" in str(exc_info.value)
+    assert "Valid options are" in str(exc_info.value)
+    assert "thin" in str(exc_info.value)
+    assert "medium" in str(exc_info.value)
+    assert "thick" in str(exc_info.value)
+
+
+def test_validate_line_style_valid(simple_route):
+    """Test that valid line style values are accepted."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    assert visualizer._validate_line_style('solid') == '-'
+    assert visualizer._validate_line_style('dashed') == '--'
+
+
+def test_validate_line_style_invalid(simple_route):
+    """Test that invalid line style values are rejected."""
+    visualizer = RouteVisualizer(simple_route)
+    
+    with pytest.raises(ValueError) as exc_info:
+        visualizer._validate_line_style('dotted')
+    assert "Invalid line style" in str(exc_info.value)
+    assert "Valid options are" in str(exc_info.value)
+    assert "solid" in str(exc_info.value)
+    assert "dashed" in str(exc_info.value)
+
+
+# Tests for line style rendering
+
+def test_render_route_solid_style(simple_route):
+    """Test rendering a route with solid line style."""
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route(line_style='solid')
+    
+    figure = visualizer.get_figure()
+    assert figure is not None
+    
+    # Get the first line and check its style
+    ax = figure.axes[0]
+    line = ax.get_lines()[0]
+    assert line.get_linestyle() == '-'
+
+
+def test_render_route_dashed_style(simple_route):
+    """Test rendering a route with dashed line style."""
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route(line_style='dashed')
+    
+    figure = visualizer.get_figure()
+    assert figure is not None
+    
+    # Get the first line and check its style
+    ax = figure.axes[0]
+    line = ax.get_lines()[0]
+    assert line.get_linestyle() == '--'
+
+
+def test_combined_styling(simple_route):
+    """Test all styling options together."""
+    visualizer = RouteVisualizer(simple_route)
+    visualizer.create_figure()
+    visualizer.render_route(
+        color='#FF0000',
+        thickness='thick',
+        line_style='dashed'
+    )
+    
+    figure = visualizer.get_figure()
+    assert figure is not None
+    
+    # Get the first line and check all style properties
+    ax = figure.axes[0]
+    line = ax.get_lines()[0]
+    assert line.get_color() == '#FF0000'
+    assert line.get_linewidth() == 2.0  # thick
+    assert line.get_linestyle() == '--'  # dashed
 
