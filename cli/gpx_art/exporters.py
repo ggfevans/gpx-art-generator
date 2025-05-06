@@ -16,12 +16,8 @@ import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-from reportlab.graphics import renderPDF
-from reportlab.lib.pagesizes import A4, letter
-from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas
+from matplotlib.backends.backend_pdf import PdfPages
 from PIL import Image
-from reportlab.lib.utils import ImageReader
 
 
 class ExportError(Exception):
@@ -80,16 +76,16 @@ class ExportFormat(Enum):
 class PageSize:
     """Common page sizes for PDF export."""
     
-    # Dictionary mapping size names to dimensions in points (width, height)
+    # Dictionary mapping size names to dimensions in inches (width, height)
     SIZES: Dict[str, Tuple[float, float]] = {
-        'letter': (8.5 * inch, 11 * inch),  # US Letter
-        'a4': (8.27 * inch, 11.69 * inch),  # A4
-        'square-small': (5 * inch, 5 * inch),  # Small square
-        'square-medium': (8 * inch, 8 * inch),  # Medium square
-        'square-large': (12 * inch, 12 * inch),  # Large square
-        'landscape-small': (6 * inch, 4 * inch),  # Small landscape
-        'landscape-medium': (10 * inch, 8 * inch),  # Medium landscape
-        'landscape-large': (14 * inch, 11 * inch),  # Large landscape
+        'letter': (8.5, 11.0),  # US Letter
+        'a4': (8.27, 11.69),  # A4
+        'square-small': (5.0, 5.0),  # Small square
+        'square-medium': (8.0, 8.0),  # Medium square
+        'square-large': (12.0, 12.0),  # Large square
+        'landscape-small': (6.0, 4.0),  # Small landscape
+        'landscape-medium': (10.0, 8.0),  # Medium landscape
+        'landscape-large': (14.0, 11.0),  # Large landscape
     }
     
     @classmethod
@@ -403,57 +399,22 @@ class Exporter:
             except ValueError as e:
                 raise ExportError(str(e))
             
-            # First, save as a PNG to a buffer
-            buf = io.BytesIO()
-            figure.savefig(
-                buf, 
-                format='png', 
-                dpi=300,
-                bbox_inches='tight',
-                pad_inches=0
-            )
-            buf.seek(0)
+            # Create a copy of the figure with the right dimensions
+            # Note: we don't modify the original figure
+            orig_size = figure.get_size_inches()
             
-            # Create a PDF with reportlab
-            c = canvas.Canvas(str(temp_file), pagesize=(width, height))
-            
-            # Calculate dimensions of the figure to maintain aspect ratio
-            fig_width, fig_height = figure.get_size_inches()
-            aspect_ratio = fig_width / fig_height
-            
-            # Calculate scaling to fit the page while maintaining aspect ratio
-            # Leave some margin
-            margin = 0.5 * inch
-            available_width = width - (2 * margin)
-            available_height = height - (2 * margin)
-            
-            # Scale based on the more constraining dimension
-            page_aspect = available_width / available_height
-            if aspect_ratio > page_aspect:
-                # Width is the constraint
-                pdf_width = available_width
-                pdf_height = pdf_width / aspect_ratio
-            else:
-                # Height is the constraint
-                pdf_height = available_height
-                pdf_width = pdf_height * aspect_ratio
-            
-            # Center on the page
-            x_pos = (width - pdf_width) / 2
-            y_pos = (height - pdf_height) / 2
-            
-            # Add the image to the PDF
-            img = plt.imread(buf)
-            c.drawImage(
-                ImageReader(np.array(img * 255, dtype=np.uint8)),
-                x_pos, 
-                y_pos, 
-                width=pdf_width, 
-                height=pdf_height
-            )
-            
-            # Finish the PDF
-            c.save()
+            # Use PdfPages for PDF export
+            with PdfPages(temp_file) as pdf:
+                # Temporarily adjust figure size to match the requested page size
+                figure.set_size_inches(width, height)
+                # Save the figure directly to PDF with tight bbox
+                pdf.savefig(
+                    figure,
+                    bbox_inches='tight',
+                    pad_inches=0.1
+                )
+                # Restore original size
+                figure.set_size_inches(orig_size)
             
             # Verify the temporary file
             self._verify_output_file(temp_file)
@@ -468,7 +429,7 @@ class Exporter:
             self._verify_output_file(output_path)
             
         except Exception as e:
-            # Handle matplotlib, reportlab or file system errors
+            # Handle matplotlib or file system errors
             if isinstance(e, ExportError):
                 # Re-raise our custom errors
                 raise
