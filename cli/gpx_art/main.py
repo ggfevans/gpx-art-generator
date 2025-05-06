@@ -4,8 +4,9 @@ import sys
 from datetime import timedelta
 from importlib.metadata import version
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Any, Optional
 
+from gpx_art.config import Config, ConfigError
 from gpx_art.exporters import Exporter, ExportError
 from gpx_art.models import Route
 from gpx_art.parsers import GPXParser
@@ -18,39 +19,154 @@ except Exception:
     __version__ = "0.1.0"  # Default fallback version
 
 
+# Load and store configuration globally
+_config = None
+
+def get_config(config_path=None):
+    """
+    Get or initialize the configuration.
+    
+    Args:
+        config_path: Optional path to a configuration file
+        
+    Returns:
+        Config object
+    """
+    global _config
+    if _config is None or config_path:
+        _config = Config(config_path=config_path)
+    return _config
+
+def get_effective_options(config_path, option_dict):
+    """
+    Merge configuration and CLI options, with CLI options taking precedence.
+    
+    Args:
+        config_path: Path to config file or None
+        option_dict: Dictionary of CLI options
+        
+    Returns:
+        Dictionary with effective options (config merged with CLI overrides)
+    """
+    # Load configuration
+    config = get_config(config_path)
+    defaults = config.get_defaults()
+    
+    # Start with configuration defaults
+    result = {}
+    
+    # Map config keys to CLI option names
+    config_to_cli = {
+        "thickness": "thickness",
+        "color": "color",
+        "style": "style",
+        "markers.enabled": "markers",
+        "markers.unit": "markers_unit",
+        "markers.interval": "marker_interval",
+        "markers.size": "marker_size",
+        "markers.color": "marker_color",
+        "markers.label_font_size": "label_font_size",
+        "overlay.enabled": "overlay",
+        "overlay.position": "overlay_position",
+        "overlay.font_size": "font_size",
+        "overlay.font_color": "font_color",
+        "overlay.background": "background",
+        "overlay.bg_color": "bg_color",
+        "overlay.bg_alpha": "bg_alpha",
+        "export.formats": "formats",
+        "export.width": None,  # Not directly mapped
+        "export.height": None,  # Not directly mapped
+        "export.dpi": "dpi",
+        "export.page_size": "page_size"
+    }
+    
+    # Handle markers enabled special case
+    if "markers" in option_dict and option_dict["markers"] is False:
+        result["markers"] = False
+    elif defaults.get("markers", {}).get("enabled", False):
+        result["markers"] = True
+        
+    # Fill in values from config, excluding None values and those
+    # that will be overridden by CLI options
+    for config_key, cli_key in config_to_cli.items():
+        if cli_key is None:
+            continue
+            
+        # Skip CLI options explicitly provided
+        if cli_key in option_dict and option_dict[cli_key] is not None:
+            continue
+            
+        # Special case for overlay fields
+        if config_key == "overlay.enabled" and "overlay" in option_dict and option_dict["overlay"] is not None:
+            continue
+            
+        # Get the config value using dot notation
+        value = config.get(f"defaults.{config_key}")
+        if value is not None:
+            # Special handling for overlay fields
+            if config_key == "overlay.fields" and value:
+                result["overlay"] = ",".join(value)
+            # Special handling for export formats
+            elif config_key == "export.formats" and value:
+                result["formats"] = ",".join(value)
+            # Normal case
+            elif cli_key:
+                result[cli_key] = value
+    
+    # Override with CLI options (non-None values only)
+    for key, value in option_dict.items():
+        if value is not None:
+            result[key] = value
+    
+    return result
+
+
 @click.group()
 @click.version_option(version=__version__)
-def cli():
+@click.option(
+    "--config", 
+    type=click.Path(exists=False), 
+    help="Path to configuration file. CLI options override config values."
+)
+@click.pass_context
+def cli(ctx, config):
     """GPX Art Generator - Transform GPS routes into artwork."""
-    pass
+    # Store config path in context for use by commands
+    ctx.ensure_object(dict)
+    ctx.obj["config_path"] = config
+    
+    # Try to load config to catch any errors early
+    try:
+        if config:
+            get_config(config)
+    except ConfigError as e:
+        click.secho(f"Error loading configuration: {e}", fg="red")
+        ctx.exit(1)
 
 
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
 @click.argument("output_file", type=click.Path())
-@click.option("--color", default="#000000", help="Line color in hex format or named color")
+@click.option("--color", help="Line color in hex format or named color (config override)")
 @click.option(
     "--thickness",
     type=click.Choice(["thin", "medium", "thick"]),
-    default="medium",
-    help="Line thickness"
+    help="Line thickness (config override)"
 )
 @click.option(
     "--style",
     type=click.Choice(["solid", "dashed"]),
-    default="solid",
-    help="Line style"
+    help="Line style (config override)"
 )
 @click.option(
     "--dpi",
     type=int,
-    default=300,
-    help="Output resolution in dots per inch (PNG only)"
+    help="Output resolution in dots per inch (PNG only, config override)"
 )
 @click.option(
     "--format",
     "formats",
-    help="Output formats (comma-separated: png,svg,pdf). Defaults to file extension."
+    help="Output formats (comma-separated: png,svg,pdf). Defaults to file extension or config."
 )
 @click.option(
     "--page-size",
@@ -59,87 +175,98 @@ def cli():
         "square-small", "square-medium", "square-large",
         "landscape-small", "landscape-medium", "landscape-large"
     ]),
-    default="letter",
-    help="Page size for PDF output"
+    help="Page size for PDF output (config override)"
 )
 @click.option(
     "--markers/--no-markers",
-    default=False,
-    help="Add distance markers along the route"
+    help="Add distance markers along the route (config override)"
 )
 @click.option(
     "--markers-unit",
     type=click.Choice(["miles", "km"]),
-    default="miles",
-    help="Unit for distance markers"
+    help="Unit for distance markers (config override)"
 )
 @click.option(
     "--marker-interval",
     type=float,
-    help="Distance between markers in the specified unit (defaults to 1.0)"
+    help="Distance between markers in the specified unit (config override)"
 )
 @click.option(
     "--marker-size",
     type=float,
-    default=6.0,
-    help="Size of the marker points"
+    help="Size of the marker points (config override)"
 )
 @click.option(
     "--marker-color",
-    help="Color of markers (defaults to route color)"
+    help="Color of markers (defaults to route color, config override)"
 )
 @click.option(
     "--label-font-size",
     type=int,
-    default=8,
-    help="Font size for distance labels"
+    help="Font size for distance labels (config override)"
 )
 @click.option(
     "--overlay",
-    help="Information to overlay (comma-separated: distance,duration,elevation,name,date)"
+    help="Information to overlay (comma-separated: distance,duration,elevation,name,date, config override)"
 )
 @click.option(
     "--overlay-position",
     type=click.Choice(["top-left", "top-right", "bottom-left", "bottom-right"]),
-    default="top-left",
-    help="Position of the information overlay"
+    help="Position of the information overlay (config override)"
 )
 @click.option(
     "--font-size",
     type=int,
-    default=10,
-    help="Font size for overlay text"
+    help="Font size for overlay text (config override)"
 )
 @click.option(
     "--font-color",
-    default="black",
-    help="Color for overlay text"
+    help="Color for overlay text (config override)"
 )
 @click.option(
     "--background/--no-background",
-    default=True,
-    help="Add background box to overlay"
+    help="Add background box to overlay (config override)"
 )
 @click.option(
     "--bg-color",
-    default="white",
-    help="Color for overlay background"
+    help="Color for overlay background (config override)"
 )
 @click.option(
     "--bg-alpha",
     type=float,
-    default=0.7,
-    help="Transparency of overlay background (0-1)"
+    help="Transparency of overlay background (0-1, config override)"
 )
+@click.pass_context
 def convert(
-    input_file, output_file, color, thickness, style, dpi, formats, page_size,
+    ctx, input_file, output_file, color, thickness, style, dpi, formats, page_size,
     markers, markers_unit, marker_interval, marker_size, marker_color, label_font_size,
     overlay, overlay_position, font_size, font_color, background, bg_color, bg_alpha
 ):
-    """Convert GPX file to artwork in PNG, SVG, or PDF format."""
+    """
+    Convert GPX file to artwork in PNG, SVG, or PDF format.
     
-    # Parse GPX file
-    click.echo("Parsing GPX file...")
+    CLI options override settings from the configuration file.
+    Use --config to specify a configuration file.
+    """
+    
+    # Get effective options (config + CLI overrides)
+    options = get_effective_options(
+        ctx.obj.get("config_path"),
+        {
+            "color": color,
+            "thickness": thickness,
+            "style": style,
+            "dpi": dpi,
+            "formats": formats,
+            "page_size": page_size,
+            "markers": markers,
+            "markers_unit": markers_unit,
+            "marker_interval": marker_interval,
+            "marker_size": marker_size,
+            "marker_color": marker_color,
+            "label_font_size": label_font_size,
+            "overlay": overlay,
+            
     parser = GPXParser(input_file)
     gpx = parser.parse()
     
@@ -543,6 +670,55 @@ def info(input_file):
     click.echo(format_bounds(route.get_bounds()))
     
     click.echo("")  # Add a newline at the end
+
+
+@cli.command()
+@click.option(
+    "--path",
+    type=click.Path(exists=False),
+    help="Path to create the config file. Defaults to ~/.gpx-art/config.yml"
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Overwrite existing config file if it exists"
+)
+def init_config(path, force):
+    """Initialize a default configuration file."""
+    config = Config()
+    
+    # Determine config path
+    if not path:
+        # Use default path
+        path = config.get_default_path()
+    
+    # Check if file exists
+    if os.path.exists(path) and not force:
+        click.secho(f"Config file already exists at {path}", fg="yellow")
+        click.echo("Use --force to overwrite")
+        return 1
+    
+    # Ensure directory exists
+    directory = os.path.dirname(os.path.abspath(path))
+    if not os.path.exists(directory):
+        try:
+            os.makedirs(directory)
+            click.echo(f"Created directory: {directory}")
+        except OSError as e:
+            click.secho(f"Error creating directory {directory}: {str(e)}", fg="red")
+            return 1
+    
+    # Generate and write config
+    sample_config = config.generate_sample()
+    try:
+        with open(path, 'w') as f:
+            f.write(sample_config)
+        click.secho(f"Config file created at {path}", fg="green")
+        click.echo("You can now customize your configuration file.")
+        return 0
+    except OSError as e:
+        click.secho(f"Error writing config file: {str(e)}", fg="red")
+        return 1
 
 
 if __name__ == "__main__":

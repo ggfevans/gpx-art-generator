@@ -3,4 +3,5 @@ gpxpy>=1.6.0
 matplotlib>=3.5.0
 reportlab>=3.6.0
 pyyaml>=6.0
+pyyaml>=6.0
 
