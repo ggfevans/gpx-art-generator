@@ -1,16 +1,31 @@
 import click
 import os
 import sys
+import functools
 from datetime import timedelta
 from importlib.metadata import version
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable, TypeVar, cast
 
-from gpx_art.config import Config, ConfigError
-from gpx_art.exporters import Exporter, ExportError
+# Import custom error handling and logging
+from gpx_art.config import Config
+from gpx_art.exceptions import (
+    GPXArtError, GPXParseError, ValidationError, 
+    RenderingError, ExportError, ConfigError
+)
+from gpx_art.exporters import Exporter
+from gpx_art.logging import (
+    configure_for_cli, log_info, log_debug, log_error, 
+    log_exception, log_warning, log_gpx_art_error
+)
 from gpx_art.models import Route
 from gpx_art.parsers import GPXParser
 from gpx_art.visualizer import RouteVisualizer
+
+# Type variables for command handler decorator
+T = TypeVar('T')
+ClickContext = Any  # Type for Click context
+CommandCallback = Callable[..., T]  # Type for command callbacks
 
 # Define the package version - will be used in the CLI's version option
 try:
@@ -121,6 +136,61 @@ def get_effective_options(config_path, option_dict):
     return result
 
 
+def handle_command_errors(f: CommandCallback) -> CommandCallback:
+    """
+    Decorator to handle errors in CLI commands.
+    
+    This decorator wraps command functions to catch exceptions,
+    log them appropriately, and display user-friendly error messages.
+    
+    Args:
+        f: The command function to wrap
+        
+    Returns:
+        Wrapped function with error handling
+    """
+    @functools.wraps(f)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return f(*args, **kwargs)
+        except GPXArtError as e:
+            # Log and display custom errors
+            log_gpx_art_error(e, module=f.__name__)
+            click.secho(str(e), fg="red")
+            
+            # Display suggestion if available
+            if e.suggestion:
+                click.echo(f"Suggestion: {e.suggestion}")
+                
+            # Exit with error code
+            return 1
+        except ExportError as e:
+            # Handle export errors from the old format
+            log_error(e, module=f.__name__)
+            click.secho(f"Error: {str(e)}", fg="red")
+            return 1
+        except ConfigError as e:
+            # Handle config errors from the old format
+            log_error(e, module=f.__name__)
+            click.secho(f"Configuration error: {str(e)}", fg="red")
+            return 1
+        except Exception as e:
+            # Handle unexpected errors
+            log_exception(e, f"Unexpected error in {f.__name__}", module=f.__name__)
+            click.secho(f"Unexpected error: {str(e)}", fg="red")
+            click.echo("This error has been logged. Please report this issue.")
+            
+            # In debug mode, show traceback
+            if click.get_current_context().obj.get("debug"):
+                click.echo("\nTraceback:")
+                import traceback
+                click.echo(traceback.format_exc())
+                
+            return 1
+    
+    return cast(CommandCallback, wrapper)
+
+
 @click.group()
 @click.version_option(version=__version__)
 @click.option(
@@ -128,19 +198,48 @@ def get_effective_options(config_path, option_dict):
     type=click.Path(exists=False), 
     help="Path to configuration file. CLI options override config values."
 )
+@click.option(
+    "--verbose", "-v",
+    count=True,
+    help="Increase verbosity (can be used multiple times)"
+)
+@click.option(
+    "--debug/--no-debug",
+    default=False,
+    help="Enable debug mode with detailed error information"
+)
+@click.option(
+    "--no-log-file",
+    is_flag=True,
+    help="Disable logging to file"
+)
 @click.pass_context
-def cli(ctx, config):
+def cli(ctx, config, verbose, debug, no_log_file):
     """GPX Art Generator - Transform GPS routes into artwork."""
-    # Store config path in context for use by commands
+    # Initialize context
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
+    ctx.obj["debug"] = debug
+    
+    # Set up logging
+    configure_for_cli(
+        verbosity=verbose,
+        log_to_file=not no_log_file
+    )
+    
+    log_info(f"Starting GPX Art Generator v{__version__}")
     
     # Try to load config to catch any errors early
     try:
         if config:
+            log_info(f"Loading configuration from {config}")
             get_config(config)
-    except ConfigError as e:
-        click.secho(f"Error loading configuration: {e}", fg="red")
+    except Exception as e:
+        log_exception(e, "Error loading configuration")
+        if isinstance(e, ConfigError):
+            click.secho(f"Error loading configuration: {e}", fg="red")
+        else:
+            click.secho(f"Unexpected error loading configuration: {str(e)}", fg="red")
         ctx.exit(1)
 
 
@@ -237,6 +336,7 @@ def cli(ctx, config):
     help="Transparency of overlay background (0-1, config override)"
 )
 @click.pass_context
+@handle_command_errors
 def convert(
     ctx, input_file, output_file, color, thickness, style, dpi, formats, page_size,
     markers, markers_unit, marker_interval, marker_size, marker_color, label_font_size,
@@ -248,6 +348,14 @@ def convert(
     CLI options override settings from the configuration file.
     Use --config to specify a configuration file.
     """
+    log_info(f"Converting GPX file: {input_file} to {output_file}")
+    log_debug("Convert options", data={
+        "color": color,
+        "thickness": thickness,
+        "style": style,
+        "formats": formats,
+        "markers": markers
+    })
     
     # Get effective options (config + CLI overrides)
     options = get_effective_options(
@@ -266,66 +374,98 @@ def convert(
             "marker_color": marker_color,
             "label_font_size": label_font_size,
             "overlay": overlay,
+            "overlay_position": overlay_position,
+            "font_size": font_size,
+            "font_color": font_color,
+            "background": background,
+            "bg_color": bg_color,
+            "bg_alpha": bg_alpha
+        }
+    )
+    
+    # Parse GPX file
+    click.echo("Parsing GPX file...")
+    try:
+        parser = GPXParser(input_file)
+        gpx = parser.parse()
+        
+        if not gpx:
+            error_msg = parser.get_error()
+            raise GPXParseError.invalid_gpx(
+                error_msg, 
+                file_path=input_file
+            )
+        
+        # Convert to internal model
+        route = parser.to_route(gpx)
+        
+        # Check if route has any segments
+        if not route.segments:
+            raise GPXParseError.missing_track(file_path=input_file)
             
-    parser = GPXParser(input_file)
-    gpx = parser.parse()
-    
-    if not gpx:
-        click.secho(f"Error: {parser.get_error()}", fg="red")
-        sys.exit(1)
-    
-    # Convert to internal model
-    route = parser.to_route(gpx)
+        # Check if route has any points
+        if not route.get_total_points():
+            raise GPXParseError.no_coordinates(file_path=input_file)
+            
+    except Exception as e:
+        if not isinstance(e, GPXArtError):
+            # Wrap non-GPXArtError exceptions
+            raise GPXParseError.invalid_gpx(
+                str(e), 
+                file_path=input_file,
+                original_error=e
+            )
+        raise
     
     # Create visualizer
     click.echo("Rendering route...")
-    visualizer = RouteVisualizer(route)
-    visualizer.create_figure()
+    log_info("Creating visualization")
     
     try:
+        visualizer = RouteVisualizer(route)
+        visualizer.create_figure()
+        
         # Render the route
+        log_debug("Rendering route", data={
+            "color": options.get("color"),
+            "thickness": options.get("thickness"),
+            "style": options.get("style")
+        })
+        
         visualizer.render_route(
-            color=color,
-            thickness=thickness,
-            line_style=style
+            color=options.get("color"),
+            thickness=options.get("thickness"),
+            line_style=options.get("style")
         )
         
         # Add distance markers if requested
-        if markers:
+        if options.get("markers"):
             try:
+                log_info("Adding distance markers")
                 visualizer.add_distance_markers(
-                    unit=markers_unit,
-                    interval=marker_interval,
-                    marker_size=marker_size,
-                    marker_color=marker_color,
+                    unit=options.get("markers_unit"),
+                    interval=options.get("marker_interval"),
+                    marker_size=options.get("marker_size"),
+                    marker_color=options.get("marker_color"),
                     show_labels=True,
-                    label_font_size=label_font_size
+                    label_font_size=options.get("label_font_size")
                 )
-            except ValueError as e:
-                click.secho(f"Error adding markers: {str(e)}", fg="red")
+            except Exception as e:
+                log_warning(f"Error adding markers: {str(e)}")
+                click.secho(f"Error adding markers: {str(e)}", fg="yellow")
                 click.echo("Continuing without markers...")
                 
         # Add information overlay if requested
-        if overlay:
+        if options.get("overlay"):
             try:
+                log_info("Adding information overlay")
                 # Parse overlay fields
-                overlay_fields = [field.strip() for field in overlay.split(',')]
+                overlay_fields = [field.strip() for field in options.get("overlay").split(',')]
                 
                 visualizer.add_overlay(
                     fields=overlay_fields,
-                    position=overlay_position,
-                    font_size=font_size,
-                    font_color=font_color,
-                    background=background,
-                    bg_color=bg_color,
-                    bg_alpha=bg_alpha
-                )
-            except ValueError as e:
-                click.secho(f"Error adding overlay: {str(e)}", fg="red")
-                click.echo("Continuing without overlay...")
-    except ValueError as e:
-        click.secho(f"Error: {str(e)}", fg="red")
-        sys.exit(1)
+                    position=options.get("overlay_position"),
+                    font_size
     
     # Determine export formats
     exporter = Exporter()
