@@ -14,7 +14,7 @@ from unittest.mock import patch
 from matplotlib.figure import Figure
 import PyPDF2
 
-from gpx_art.exporters import Exporter, ExportError, ExportFormat, PageSize
+from route_to_art.exporters import Exporter, ExportError, ExportFormat, PageSize
 
 
 @pytest.fixture

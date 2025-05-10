@@ -159,6 +159,117 @@ class RouteArtError(Exception):
             file_path=file_path,
             context=context
         )
+
+
+class ConfigError(RouteArtError):
+    """Exception raised for configuration errors."""
+    
+    @classmethod
+    def config_not_found(
+        cls,
+        path: str,
+        original_error: Optional[Exception] = None
+    ) -> 'ConfigError':
+        """
+        Create an error for configuration file not found.
+        
+        Args:
+            path: Path to the missing config file
+            original_error: The original exception that caused this error
+            
+        Returns:
+            A ConfigError instance
+        """
+        suggestion = "Create a configuration file or specify the correct path."
+        return cls.from_template(
+            'config_not_found',
+            {'path': path},
+            original_error=original_error,
+            suggestion=suggestion,
+            file_path=path
+        )
+    
+    @classmethod
+    def config_parse_error(
+        cls,
+        path: str,
+        error: str,
+        original_error: Optional[Exception] = None
+    ) -> 'ConfigError':
+        """
+        Create an error for configuration file parsing failures.
+        
+        Args:
+            path: Path to the config file with parsing error
+            error: Description of the parsing error
+            original_error: The original exception that caused this error
+            
+        Returns:
+            A ConfigError instance
+        """
+        suggestion = "Check the syntax of your configuration file. It should be valid YAML."
+        return cls.from_template(
+            'config_parse_error',
+            {'path': path, 'error': error},
+            original_error=original_error,
+            suggestion=suggestion,
+            file_path=path
+        )
+    
+    @classmethod
+    def invalid_config_value(
+        cls,
+        key: str,
+        value: Any,
+        details: str,
+        original_error: Optional[Exception] = None
+    ) -> 'ConfigError':
+        """
+        Create an error for invalid configuration value.
+        
+        Args:
+            key: The configuration key with invalid value
+            value: The invalid value
+            details: Details about why the value is invalid
+            original_error: The original exception that caused this error
+            
+        Returns:
+            A ConfigError instance
+        """
+        suggestion = f"Check the value for '{key}' in your configuration file."
+        return cls.from_template(
+            'invalid_config_value',
+            {'key': key, 'value': value, 'details': details},
+            original_error=original_error,
+            suggestion=suggestion
+        )
+    
+    @classmethod
+    def invalid_config_structure(
+        cls,
+        error: str,
+        original_error: Optional[Exception] = None,
+        file_path: Optional[str] = None
+    ) -> 'ConfigError':
+        """
+        Create an error for invalid configuration structure.
+        
+        Args:
+            error: Description of the structure error
+            original_error: The original exception that caused this error
+            file_path: Path to the config file
+            
+        Returns:
+            A ConfigError instance
+        """
+        suggestion = "Make sure your configuration has 'defaults' and 'profiles' sections."
+        return cls.from_template(
+            'invalid_config_structure',
+            {'error': error},
+            original_error=original_error,
+            suggestion=suggestion,
+            file_path=file_path
+        )
     
     @staticmethod
     def _get_format_vars(format_string: str) -> List[str]:
@@ -458,4 +569,41 @@ class ExportError(RouteArtError):
     @classmethod
     def missing_dependency(
         cls,
-
+        dependency_name: str,
+        purpose: str = None,
+        install_command: str = None,
+        suggestion: str = None,
+        module: str = None
+    ) -> "ExportError":
+        """
+        Create an error for a missing dependency.
+        
+        Args:
+            dependency_name: Name of the missing dependency
+            purpose: What the dependency is used for (optional)
+            install_command: Command to install the dependency (optional)
+            suggestion: Additional suggestion to the user (optional)
+            module: Module where the error occurred (optional)
+            
+        Returns:
+            ExportError instance
+        """
+        format_purpose = purpose or "exporting"
+        install_cmd = install_command or f"pip install {dependency_name}"
+        
+        template_vars = {
+            'dependency': dependency_name,
+            'format': format_purpose,
+            'install_command': install_cmd
+        }
+        
+        # Use suggestion if provided, otherwise create a default one
+        if not suggestion:
+            suggestion = f"Install the required dependency with: {install_cmd}"
+            
+        return cls.from_template(
+            'missing_dependency',
+            template_vars,
+            suggestion=suggestion,
+            module=module
+        )

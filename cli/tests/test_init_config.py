@@ -7,8 +7,8 @@ from unittest.mock import patch, mock_open, MagicMock
 from click.testing import CliRunner
 from pathlib import Path
 
-from gpx_art.main import cli, init_config
-from gpx_art.config import Config
+from route_to_art.main import cli, init_config
+from route_to_art.config import Config
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ class TestInitConfig:
         # Mock the default path to be in our temporary directory
         default_path = os.path.join(str(tmp_path), ".gpx-art/config.yml")
         
-        with patch('gpx_art.config.Config.get_default_path', return_value=default_path):
+        with patch('route_to_art.config.Config.get_default_path', return_value=default_path):
             # Ensure the directory doesn't exist yet
             config_dir = os.path.dirname(default_path)
             if os.path.exists(config_dir):
