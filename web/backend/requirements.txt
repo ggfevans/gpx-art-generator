@@ -1,0 +1,28 @@
+# Core dependencies
+fastapi>=0.100.0,<0.110.0
+uvicorn[standard]>=0.23.0,<0.30.0
+python-multipart>=0.0.6
+pydantic>=2.0.0,<3.0.0
+
+# Additional dependencies
+aiofiles>=23.1.0,<24.0.0
+python-dotenv>=1.0.0,<2.0.0
+jinja2>=3.1.2,<4.0.0
+
+# Async support
+asyncio>=3.4.3,<4.0.0
+
+# Logging and monitoring
+rich>=13.5.0,<14.0.0
+
+# Runtime dependencies (should be installed in the system)
+# The CLI tool should be installed and available in the PATH for this API to work
+
+# Development dependencies (install with pip install -r requirements.txt[dev])
+pytest>=7.4.0,<8.0.0; extra == 'dev'
+pytest-asyncio>=0.21.1,<0.22.0; extra == 'dev'
+httpx>=0.24.1,<0.30.0; extra == 'dev'
+black>=23.7.0,<24.0.0; extra == 'dev'
+isort>=5.12.0,<6.0.0; extra == 'dev'
+mypy>=1.4.1,<2.0.0; extra == 'dev'
+
