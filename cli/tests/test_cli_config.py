@@ -109,7 +109,7 @@ def mock_config():
 @pytest.fixture
 def mock_gpx_parser():
     """Mock GPXParser for testing."""
-    with patch('route_to_art.main.GPXParser') as MockParser:
+    with patch('route_to_art.main.RouteParser') as MockParser:
         parser_instance = MagicMock()
         MockParser.return_value = parser_instance
         

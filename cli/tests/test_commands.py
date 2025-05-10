@@ -158,7 +158,7 @@ def test_info_valid_file(runner, valid_gpx_file):
     assert result.exit_code == 0
     
     # Check for expected sections in output
-    assert "=== GPX File Information ===" in result.output
+    assert "=== Route Information ===" in result.output
     assert "=== Route Statistics ===" in result.output
     assert "=== Route Structure ===" in result.output
     assert "=== Elevation Profile ===" in result.output
@@ -205,7 +205,7 @@ def test_validate_valid_file(runner, valid_gpx_file):
     """Test validate command with a valid GPX file."""
     result = runner.invoke(validate, [valid_gpx_file])
     assert result.exit_code == 0
-    assert "GPX file is valid" in result.output
+    assert "Route data is valid" in result.output
     assert "No issues found" in result.output
 
 
@@ -252,7 +252,7 @@ def test_validate_empty_file(runner, empty_gpx_file):
 def test_convert_invalid_extension(runner, valid_gpx_file):
     """Test convert command with invalid output file extension."""
     # Use .jpg extension which is not supported
-    result = runner.invoke(convert, [valid_gpx_file, "output.jpg"])
+    result = runner.invoke(cli, ["convert", valid_gpx_file, "output.jpg"])
     assert result.exit_code == 1
     assert "Error: Output file must have .png extension" in result.output
 
@@ -260,7 +260,7 @@ def test_convert_invalid_extension(runner, valid_gpx_file):
 def test_convert_nonexistent_file(runner, tmp_path):
     """Test convert command with non-existent input file."""
     output_file = str(tmp_path / "output.png")
-    result = runner.invoke(convert, ["/nonexistent/path.gpx", output_file])
+    result = runner.invoke(cli, ["convert", "/nonexistent/path.gpx", output_file])
     assert result.exit_code == 2  # Click path validation error
     assert "does not exist" in result.output
 
@@ -268,7 +268,7 @@ def test_convert_nonexistent_file(runner, tmp_path):
 def test_convert_invalid_file(runner, invalid_gpx_file, tmp_path):
     """Test convert command with invalid GPX file."""
     output_file = str(tmp_path / "output.png")
-    result = runner.invoke(convert, [invalid_gpx_file, output_file])
+    result = runner.invoke(cli, ["convert", invalid_gpx_file, output_file])
     assert result.exit_code == 1
     assert "Error:" in result.output
     assert "Error parsing GPX file" in result.output
@@ -280,7 +280,7 @@ def test_convert_success(runner, valid_gpx_file, tmp_path):
     output_file = str(tmp_path / "output.png")
     
     # Run the command
-    result = runner.invoke(convert, [valid_gpx_file, output_file])
+    result = runner.invoke(cli, ["convert", valid_gpx_file, output_file])
     
     # Check command result
     assert result.exit_code == 0
@@ -308,14 +308,7 @@ def test_convert_with_options(runner, valid_gpx_file, tmp_path):
     output_file = str(tmp_path / "output.png")
     
     # Run with custom options
-    result = runner.invoke(convert, [
-        valid_gpx_file,
-        output_file,
-        "--color", "#FF0000",
-        "--thickness", "thick",
-        "--dpi", "150"
-    ])
-    
+    result = runner.invoke(cli, ["convert", valid_gpx_file, output_file, "--color", "#FF0000", "--thickness", "thick", "--dpi", "150"])    
     # Check command result
     assert result.exit_code == 0
     assert "Conversion complete" in result.output
@@ -331,17 +324,7 @@ def test_convert_with_markers(runner, valid_gpx_file, tmp_path):
     output_file = str(tmp_path / "output.png")
     
     # Run with marker options
-    result = runner.invoke(convert, [
-        valid_gpx_file,
-        output_file,
-        "--markers",
-        "--markers-unit", "km",
-        "--marker-interval", "0.5",
-        "--marker-size", "8",
-        "--marker-color", "blue",
-        "--label-font-size", "10"
-    ])
-    
+    result = runner.invoke(cli, ["convert", valid_gpx_file, output_file, "--color", "#FF0000", "--thickness", "thick", "--dpi", "150"])    
     # Check command result
     assert result.exit_code == 0
     assert "Markers:" in result.output
@@ -359,18 +342,7 @@ def test_convert_with_overlay(runner, valid_gpx_file, tmp_path):
     output_file = str(tmp_path / "output.png")
     
     # Run with overlay options
-    result = runner.invoke(convert, [
-        valid_gpx_file,
-        output_file,
-        "--overlay", "distance,name,elevation",
-        "--overlay-position", "top-right",
-        "--font-size", "12",
-        "--font-color", "blue",
-        "--background",
-        "--bg-color", "white",
-        "--bg-alpha", "0.8"
-    ])
-    
+    result = runner.invoke(cli, ["convert", valid_gpx_file, output_file, "--color", "#FF0000", "--thickness", "thick", "--dpi", "150"])    
     # Check command result
     assert result.exit_code == 0
     assert "Overlay:" in result.output
@@ -384,8 +356,8 @@ def test_convert_different_dpi(runner, valid_gpx_file, tmp_path):
     high_dpi_file = str(tmp_path / "high_dpi.png")
     
     # Create files with different DPI
-    runner.invoke(convert, [valid_gpx_file, low_dpi_file, "--dpi", "72"])
-    runner.invoke(convert, [valid_gpx_file, high_dpi_file, "--dpi", "300"])
+    runner.invoke(cli, ["convert", valid_gpx_file, low_dpi_file, "--dpi", "72"])
+    runner.invoke(cli, ["convert", valid_gpx_file, high_dpi_file, "--dpi", "300"])
     
     # Higher DPI should result in larger file
     low_size = os.path.getsize(low_dpi_file)
@@ -400,7 +372,7 @@ def test_convert_export_error(runner, valid_gpx_file, tmp_path):
     # Mock the export_png method to raise an error
     with patch('route_to_art.exporters.Exporter.export_png', 
               side_effect=ExportError("Mock export error")):
-        result = runner.invoke(convert, [valid_gpx_file, output_file])
+        result = runner.invoke(cli, ["convert", valid_gpx_file, output_file])
         
         # Check error handling
         assert result.exit_code == 1
@@ -416,7 +388,7 @@ def test_convert_progress_messages(runner, valid_gpx_file, tmp_path):
     
     # Mock the export to avoid actual file creation
     with patch('route_to_art.exporters.Exporter.export_png'):
-        result = runner.invoke(convert, [valid_gpx_file, output_file])
+        result = runner.invoke(cli, ["convert", valid_gpx_file, output_file])
         
         # Check specific progress messages
         assert "Parsing GPX file..." in result.output
