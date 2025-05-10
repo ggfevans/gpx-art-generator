@@ -1,5 +1,5 @@
 """
-GPX parsing functionality for the gpx-art tool.
+GPX parsing functionality for the route-to-art tool.
 Provides classes for loading and validating GPX files.
 """
 
@@ -13,7 +13,7 @@ import gpxpy.gpx
 from route_to_art.models import Route, RoutePoint, RouteSegment
 
 
-class GPXParser:
+class RouteParser:
     """Parser for GPX files with validation capabilities."""
 
     def __init__(self, filepath: str):

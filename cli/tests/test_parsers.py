@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from route_to_art.parsers import GPXParser
+from route_to_art.parsers import RouteParser
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def non_gpx_file():
 
 def test_parse_valid_gpx(valid_gpx_file):
     """Test parsing a valid GPX file."""
-    parser = GPXParser(valid_gpx_file)
+    parser = RouteParser(valid_gpx_file)
     gpx = parser.parse()
     
     assert gpx is not None
@@ -104,7 +104,7 @@ def test_parse_valid_gpx(valid_gpx_file):
 
 def test_parse_nonexistent_file():
     """Test parsing a non-existent file."""
-    parser = GPXParser("/path/to/nonexistent/file.gpx")
+    parser = RouteParser("/path/to/nonexistent/file.gpx")
     gpx = parser.parse()
     
     assert gpx is None
@@ -114,7 +114,7 @@ def test_parse_nonexistent_file():
 
 def test_parse_non_gpx_file(non_gpx_file):
     """Test parsing a file that doesn't have a .gpx extension."""
-    parser = GPXParser(non_gpx_file)
+    parser = RouteParser(non_gpx_file)
     gpx = parser.parse()
     
     assert gpx is None
@@ -124,7 +124,7 @@ def test_parse_non_gpx_file(non_gpx_file):
 
 def test_parse_invalid_gpx(invalid_gpx_file):
     """Test parsing an invalid GPX file."""
-    parser = GPXParser(invalid_gpx_file)
+    parser = RouteParser(invalid_gpx_file)
     gpx = parser.parse()
     
     assert gpx is None
@@ -134,7 +134,7 @@ def test_parse_invalid_gpx(invalid_gpx_file):
 
 def test_is_valid_lazy_parsing(valid_gpx_file):
     """Test is_valid triggers parsing if not already done."""
-    parser = GPXParser(valid_gpx_file)
+    parser = RouteParser(valid_gpx_file)
     # We haven't called parse() yet
     assert parser.is_valid()  # Should trigger parsing
     assert parser._parsed  # Check that parsing was triggered
@@ -142,7 +142,7 @@ def test_is_valid_lazy_parsing(valid_gpx_file):
 
 def test_get_error_lazy_parsing(invalid_gpx_file):
     """Test get_error triggers parsing if not already done."""
-    parser = GPXParser(invalid_gpx_file)
+    parser = RouteParser(invalid_gpx_file)
     # We haven't called parse() yet
     error = parser.get_error()  # Should trigger parsing
     assert error is not None

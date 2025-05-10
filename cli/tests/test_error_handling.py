@@ -12,12 +12,12 @@ from click.testing import CliRunner
 
 from route_to_art.main import cli, handle_command_errors
 from route_to_art.exceptions import (
-    GPXArtError, GPXParseError, ValidationError, 
+    RouteArtError, RouteParseError, ValidationError, 
     RenderingError, ExportError, ConfigError
 )
 from route_to_art.logging import (
     configure_for_cli, log_info, log_debug, log_error, 
-    log_exception, log_warning, log_route_to_art_error, 
+    log_exception, log_warning, log_route_art_error, 
     setup_logging
 )
 
@@ -64,45 +64,45 @@ def test_error_template_with_complex_data():
         ]
     }
     
-    error = GPXArtError(
+    error = RouteArtError(
         message="Complex data test",
         context=context
     )
     
     # Test logging with complex context data
     with patch('json.dumps', side_effect=lambda obj, **kwargs: str(obj)) as mock_json:
-        log_route_to_art_error(error)
+        log_route_art_error(error)
         mock_json.assert_called_once()
         
     # Test fallback when serialization fails
     with patch('json.dumps', side_effect=TypeError("Not serializable")):
         # Should not raise an exception
-        log_route_to_art_error(error)
+        log_route_art_error(error)
 
 
 def test_error_hierarchy_inheritance():
     """Test that error hierarchy properly inherits behaviors."""
     # Create instances of different error types
-    base_error = GPXArtError("Base error")
-    parse_error = GPXParseError("Parse error")
+    base_error = RouteArtError("Base error")
+    parse_error = RouteParseError("Parse error")
     validation_error = ValidationError("Validation error")
     rendering_error = RenderingError("Rendering error")
     export_error = ExportError("Export error")
     config_error = ConfigError("Config error")
     
-    # All should be instances of GPXArtError
-    assert isinstance(parse_error, GPXArtError)
-    assert isinstance(validation_error, GPXArtError)
-    assert isinstance(rendering_error, GPXArtError)
-    assert isinstance(export_error, GPXArtError)
-    assert isinstance(config_error, GPXArtError)
+    # All should be instances of RouteArtError
+    assert isinstance(parse_error, RouteArtError)
+    assert isinstance(validation_error, RouteArtError)
+    assert isinstance(rendering_error, RouteArtError)
+    assert isinstance(export_error, RouteArtError)
+    assert isinstance(config_error, RouteArtError)
     
     # Test all work with the error handling decorator
     @handle_command_errors
     def raise_error(error):
         raise error
     
-    with patch('click.secho'), patch('route_to_art.logging.log_route_to_art_error'):
+    with patch('click.secho'), patch('route_to_art.logging.log_route_art_error'):
         # All should be handled by the decorator
         result1 = raise_error(base_error)
         result2 = raise_error(parse_error)
@@ -182,7 +182,7 @@ def test_cli_global_error_recovery():
 
 def test_cli_verbose_error_output():
     """Test that verbose mode provides more detailed error output."""
-    with patch('route_to_art.main.GPXParser.parse', 
+    with patch('route_to_art.main.RouteParser.parse', 
               side_effect=Exception("Simulated error with details")), \
          patch('route_to_art.logging.configure_for_cli'), \
          patch('route_to_art.logging.log_exception'):
@@ -209,11 +209,11 @@ def test_cli_verbose_error_output():
 
 def test_error_with_suggestion():
     """Test that errors with suggestions show those suggestions to the user."""
-    # Create a mock GPXParseError with a suggestion
-    error = GPXParseError.missing_track(file_path="test.gpx")
+    # Create a mock RouteParseError with a suggestion
+    error = RouteParseError.missing_track(file_path="test.gpx")
     
-    with patch('route_to_art.main.GPXParser.parse'), \
-         patch('route_to_art.main.GPXParser.to_route', side_effect=error):
+    with patch('route_to_art.main.RouteParser.parse'), \
+         patch('route_to_art.main.RouteParser.to_route', side_effect=error):
         
         # Run the command
         runner = CliRunner()
@@ -247,8 +247,8 @@ def test_concurrent_errors():
     # Create error scenarios in multiple components
     with patch('route_to_art.exporters.Exporter.export_png',
               side_effect=ExportError("PNG export failed")), \
-         patch('route_to_art.main.GPXParser.parse'), \
-         patch('route_to_art.main.GPXParser.to_route'), \
+         patch('route_to_art.main.RouteParser.parse'), \
+         patch('route_to_art.main.RouteParser.to_route'), \
          patch('route_to_art.main.RouteVisualizer.render_route'), \
          patch('route_to_art.logging.log_error'):
         
@@ -295,17 +295,17 @@ def test_handle_command_errors_success():
 
 
 def test_handle_command_errors_with_route_to_art_error():
-    """Test the error handling decorator with a GPXArtError."""
+    """Test the error handling decorator with a RouteArtError."""
     
-    # Define a test function that raises a GPXArtError
+    # Define a test function that raises a RouteArtError
     @handle_command_errors
     def error_function():
-        raise GPXArtError("Test error message", suggestion="Try this fix")
+        raise RouteArtError("Test error message", suggestion="Try this fix")
     
     # Function should handle the error and return exit code 1
     with patch('click.secho') as mock_secho, \
          patch('click.echo') as mock_echo, \
-         patch('route_to_art.logging.log_route_to_art_error') as mock_log:
+         patch('route_to_art.logging.log_route_art_error') as mock_log:
         
         result = error_function()
         
@@ -378,8 +378,8 @@ def test_handle_command_errors_with_debug_mode():
 # Tests for custom exceptions
 
 def test_route_to_art_error_basic():
-    """Test basic GPXArtError creation and properties."""
-    error = GPXArtError(
+    """Test basic RouteArtError creation and properties."""
+    error = RouteArtError(
         message="Test error message",
         suggestion="Fix suggestion",
         file_path="/path/to/file.gpx",
@@ -400,19 +400,19 @@ def test_route_to_art_error_basic():
 
 
 def test_gpx_parse_error_factory_methods():
-    """Test factory methods for GPXParseError."""
+    """Test factory methods for RouteParseError."""
     # Test invalid_gpx factory method
-    error1 = GPXParseError.invalid_gpx("XML syntax error", file_path="test.gpx")
+    error1 = RouteParseError.invalid_gpx("XML syntax error", file_path="test.gpx")
     assert "Invalid GPX file: XML syntax error" in str(error1)
     assert "test.gpx" in str(error1)
     
     # Test missing_track factory method
-    error2 = GPXParseError.missing_track(file_path="empty.gpx")
+    error2 = RouteParseError.missing_track(file_path="empty.gpx")
     assert "No track data found" in str(error2)
     assert "empty.gpx" in str(error2)
     
     # Test no_coordinates factory method
-    error3 = GPXParseError.no_coordinates(file_path="no_coords.gpx")
+    error3 = RouteParseError.no_coordinates(file_path="no_coords.gpx")
     assert "No coordinate data found" in str(error3)
     assert "no_coords.gpx" in str(error3)
 
@@ -485,14 +485,14 @@ def test_config_error_basic():
 def test_error_message_templates():
     """Test that error message templates work correctly."""
     # Test a standard template
-    error1 = GPXArtError.from_template(
+    error1 = RouteArtError.from_template(
         'file_not_found',
         {'path': '/missing/file.gpx'}
     )
     assert "Cannot find file: /missing/file.gpx" in str(error1)
     
     # Test a template with multiple variables
-    error2 = GPXArtError.from_template(
+    error2 = RouteArtError.from_template(
         'invalid_file_type',
         {'path': 'test.jpg', 'expected_types': 'GPX, KML'}
     )
@@ -500,11 +500,11 @@ def test_error_message_templates():
     assert "Expected GPX, KML" in str(error2)
     
     # Test handling of missing template
-    error3 = GPXArtError.from_template('non_existent_template')
+    error3 = RouteArtError.from_template('non_existent_template')
     assert "Unknown error template: non_existent_template" in str(error3)
     
     # Test handling of missing variables in template
-    error4 = GPXArtError.from_template('invalid_file_type', {'path': 'test.jpg'})
+    error4 = RouteArtError.from_template('invalid_file_type', {'path': 'test.jpg'})
     assert "Missing variables" in str(error4)
 
 
@@ -514,7 +514,7 @@ def test_error_context_and_suggestions():
     """Test that context and suggestions are properly stored and displayed."""
     original_error = ValueError("Original error")
     
-    error = GPXArtError(
+    error = RouteArtError(
         message="Main error message",
         original_error=original_error,
         suggestion="Try this solution",
@@ -564,16 +564,16 @@ def test_log_error(logger_mock):
     logger_mock.log.assert_called_with(logging.ERROR, "Error without traceback")
 
 
-def test_log_route_to_art_error(logger_mock):
-    """Test the log_route_to_art_error function."""
-    error = GPXArtError(
+def test_log_route_art_error(logger_mock):
+    """Test the log_route_art_error function."""
+    error = RouteArtError(
         message="GPX Art error",
         context={"key": "value"},
         suggestion="Try this"
     )
     
     # Test with module
-    log_route_to_art_error(error, module="test_module")
+    log_route_art_error(error, module="test_module")
     
     # Verify that the logger was called with the correct message
     call_args = logger_mock.error.call_args[0][0]
@@ -581,7 +581,7 @@ def test_log_route_to_art_error(logger_mock):
     
     # Test with context serialization
     with patch('json.dumps', return_value='{"key": "value"}'):
-        log_route_to_art_error(error)
+        log_route_art_error(error)
         call_args = logger_mock.error.call_args[0][0]
         assert 'Context: {"key": "value"}' in call_args
 
@@ -679,8 +679,8 @@ def test_cli_convert_recover_from_marker_error():
     """Test that convert command recovers from marker rendering errors."""
     with patch('click.echo'), \
          patch('click.secho'), \
-         patch('route_to_art.main.GPXParser.parse'), \
-         patch('route_to_art.main.GPXParser.to_route'), \
+         patch('route_to_art.main.RouteParser.parse'), \
+         patch('route_to_art.main.RouteParser.to_route'), \
          patch('route_to_art.main.RouteVisualizer.render_route'), \
          patch('route_to_art.main.RouteVisualizer.add_distance_markers',
                side_effect=Exception("Marker error")), \
@@ -705,8 +705,8 @@ def test_cli_convert_recover_from_overlay_error():
     """Test that convert command recovers from overlay rendering errors."""
     with patch('click.echo'), \
          patch('click.secho'), \
-         patch('route_to_art.main.GPXParser.parse'), \
-         patch('route_to_art.main.GPXParser.to_route'), \
+         patch('route_to_art.main.RouteParser.parse'), \
+         patch('route_to_art.main.RouteParser.to_route'), \
          patch('route_to_art.main.RouteVisualizer.render_route'), \
          patch('route_to_art.main.RouteVisualizer.add_overlay',
                side_effect=Exception("Overlay error")), \
@@ -742,8 +742,8 @@ def test_export_multiple_partial_success():
         
         # Run with config to use our mocked Exporter
         with patch('route_to_art.main.Exporter'), \
-             patch('route_to_art.main.GPXParser.parse'), \
-             patch('route_to_art.main.GPXParser.to_route'), \
+             patch('route_to_art.main.RouteParser.parse'), \
+             patch('route_to_art.main.RouteParser.to_route'), \
              patch('route_to_art.main.RouteVisualizer.render_route'), \
              patch('route_to_art.main.get_effective_options', return_value={}):
             
