@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="gpx-art",
+    name="route-to-art",
     version="0.1.0",
     description="Transform GPS routes into artwork",
     author="GPX Art Generator Team",
@@ -13,7 +13,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'gpx-art=gpx_art.main:cli',
+            'route-to-art=route_to_art.main:cli',
         ],
     },
     python_requires=">=3.9",
