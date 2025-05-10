@@ -465,8 +465,14 @@ def convert(
                 visualizer.add_overlay(
                     fields=overlay_fields,
                     position=options.get("overlay_position"),
-                    font_size
-    
+                    font_size=options.get("font_size")
+                )
+            except Exception as e:
+                log_warning(f"Failed to add overlay: {e}")
+    except Exception as e:
+        log_error(f"Error rendering route: {e}")
+        raise RenderingError(f"Failed to render route: {e}")
+        
     # Determine export formats
     exporter = Exporter()
     output_path = Path(output_file)

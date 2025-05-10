@@ -12,9 +12,9 @@ import pytest
 from click.testing import CliRunner
 from PIL import Image
 
-from gpx_art.exporters import ExportError
-from gpx_art.main import cli, convert, info, validate
-from gpx_art.models import Route, RoutePoint, RouteSegment
+from route_to_art.exporters import ExportError
+from route_to_art.main import cli, convert, info, validate
+from route_to_art.models import Route, RoutePoint, RouteSegment
 
 
 @pytest.fixture
@@ -398,7 +398,7 @@ def test_convert_export_error(runner, valid_gpx_file, tmp_path):
     output_file = str(tmp_path / "output.png")
     
     # Mock the export_png method to raise an error
-    with patch('gpx_art.exporters.Exporter.export_png', 
+    with patch('route_to_art.exporters.Exporter.export_png', 
               side_effect=ExportError("Mock export error")):
         result = runner.invoke(convert, [valid_gpx_file, output_file])
         
@@ -415,7 +415,7 @@ def test_convert_progress_messages(runner, valid_gpx_file, tmp_path):
     output_file = str(tmp_path / "output.png")
     
     # Mock the export to avoid actual file creation
-    with patch('gpx_art.exporters.Exporter.export_png'):
+    with patch('route_to_art.exporters.Exporter.export_png'):
         result = runner.invoke(convert, [valid_gpx_file, output_file])
         
         # Check specific progress messages

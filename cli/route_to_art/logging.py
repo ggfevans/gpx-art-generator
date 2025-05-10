@@ -1,5 +1,5 @@
 """
-Logging configuration for gpx-art.
+Logging configuration for route-to-art.
 
 This module provides logging configuration and helper functions
 for file-based and console logging with proper error handling.
@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Optional, Union, Dict, Any
 
 # Constants for default log configuration
-DEFAULT_LOG_DIR = os.path.expanduser("~/.gpx-art/logs")
-DEFAULT_LOG_FILE = "gpx-art.log"
+DEFAULT_LOG_DIR = os.path.expanduser("~/.route-to-art/logs")
+DEFAULT_LOG_FILE = "route-to-art.log"
 DEFAULT_MAX_LOG_SIZE = 5 * 1024 * 1024  # 5 MB
 DEFAULT_BACKUP_COUNT = 3  # Keep 3 rotated log files
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -57,8 +57,8 @@ def setup_logging(
     Set up logging with file and console handlers.
     
     Args:
-        log_dir: Directory for log files, defaults to ~/.gpx-art/logs
-        log_file: Log file name, defaults to gpx-art.log
+        log_dir: Directory for log files, defaults to ~/.route-to-art/logs
+        log_file: Log file name, defaults to route-to-art.log
         log_level: Log level for file logging
         console_level: Log level for console output
         max_size: Maximum size of log file before rotation in bytes
@@ -75,7 +75,7 @@ def setup_logging(
     global _logger
     
     # Create logger
-    logger = logging.getLogger("gpx-art")
+    logger = logging.getLogger("route-to-art")
     logger.setLevel(min(log_level, console_level) if console else log_level)
     
     # Clear existing handlers (in case of reconfiguration)
@@ -314,15 +314,15 @@ def get_log_path() -> Optional[str]:
     return None
 
 
-def log_gpx_art_error(
-    error: 'GPXArtError',  # Forward reference to avoid circular import
+def log_route_art_error(
+    error: 'RouteArtError',  # Forward reference to avoid circular import
     module: Optional[str] = None
 ) -> None:
     """
-    Log a GPXArtError with its context information.
+    Log a RouteArtError with its context information.
     
     Args:
-        error: The GPXArtError to log
+        error: The RouteArtError to log
         module: Module name for context
     """
     logger = get_logger()

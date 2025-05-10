@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Union
 import gpxpy
 import gpxpy.gpx
 
-from gpx_art.models import Route, RoutePoint, RouteSegment
+from route_to_art.models import Route, RoutePoint, RouteSegment
 
 
 class GPXParser:

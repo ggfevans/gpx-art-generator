@@ -14,8 +14,8 @@ matplotlib.use('Agg')
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
-from gpx_art.models import Route, RoutePoint, RouteSegment
-from gpx_art.visualizer import RouteVisualizer, mercator_projection
+from route_to_art.models import Route, RoutePoint, RouteSegment
+from route_to_art.visualizer import RouteVisualizer, mercator_projection
 
 
 # Test route fixtures
@@ -249,7 +249,7 @@ def test_render_auto_creates_figure(simple_route):
 
 def test_overlay_formatter_distance():
     """Test distance formatting in OverlayFormatter."""
-    from gpx_art.visualizer import OverlayFormatter
+    from route_to_art.visualizer import OverlayFormatter
     
     # Test with zero
     assert "0.0 km (0.0 miles)" in OverlayFormatter.format_distance(0)
@@ -263,7 +263,7 @@ def test_overlay_formatter_distance():
 
 def test_overlay_formatter_duration():
     """Test duration formatting in OverlayFormatter."""
-    from gpx_art.visualizer import OverlayFormatter
+    from route_to_art.visualizer import OverlayFormatter
     from datetime import timedelta
     
     # Test with None
@@ -286,7 +286,7 @@ def test_overlay_formatter_duration():
 
 def test_overlay_formatter_elevation():
     """Test elevation formatting in OverlayFormatter."""
-    from gpx_art.visualizer import OverlayFormatter
+    from route_to_art.visualizer import OverlayFormatter
     
     # Test with None
     assert "No elevation data" in OverlayFormatter.format_elevation(None)
@@ -307,7 +307,7 @@ def test_overlay_formatter_elevation():
 
 def test_overlay_formatter_name():
     """Test name formatting in OverlayFormatter."""
-    from gpx_art.visualizer import OverlayFormatter
+    from route_to_art.visualizer import OverlayFormatter
     
     # Test with None
     assert "Unnamed route" in OverlayFormatter.format_name(None)
@@ -327,7 +327,7 @@ def test_overlay_formatter_name():
 
 def test_overlay_formatter_date():
     """Test date formatting in OverlayFormatter."""
-    from gpx_art.visualizer import OverlayFormatter
+    from route_to_art.visualizer import OverlayFormatter
     from datetime import datetime
     
     # Test with None
@@ -343,7 +343,7 @@ def test_overlay_formatter_date():
 
 def test_add_overlay_basic(simple_route):
     """Test adding basic overlay to figure."""
-    from gpx_art.visualizer import OverlayField
+    from route_to_art.visualizer import OverlayField
     
     visualizer = RouteVisualizer(simple_route)
     visualizer.create_figure()
@@ -375,7 +375,7 @@ def test_add_overlay_with_string_fields(simple_route):
 
 def test_add_overlay_positions(simple_route):
     """Test different overlay positions."""
-    from gpx_art.visualizer import OverlayPosition
+    from route_to_art.visualizer import OverlayPosition
     
     visualizer = RouteVisualizer(simple_route)
     visualizer.create_figure()
@@ -410,7 +410,7 @@ def test_add_overlay_positions(simple_route):
 
 def test_overlay_position_from_string():
     """Test converting string position to enum."""
-    from gpx_art.visualizer import OverlayPosition
+    from route_to_art.visualizer import OverlayPosition
     
     # Test valid positions
     assert OverlayPosition.from_string("top-left") == OverlayPosition.TOP_LEFT
@@ -424,7 +424,7 @@ def test_overlay_position_from_string():
 
 def test_overlay_field_from_string():
     """Test converting string field to enum."""
-    from gpx_art.visualizer import OverlayField
+    from route_to_art.visualizer import OverlayField
     
     # Test valid fields
     assert OverlayField.from_string("distance") == OverlayField.DISTANCE

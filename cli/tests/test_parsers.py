@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from gpx_art.parsers import GPXParser
+from route_to_art.parsers import GPXParser
 
 
 @pytest.fixture

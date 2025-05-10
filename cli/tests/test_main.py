@@ -1,7 +1,7 @@
 import pytest
 from click.testing import CliRunner
 
-from gpx_art.main import cli
+from route_to_art.main import cli
 
 
 @pytest.fixture

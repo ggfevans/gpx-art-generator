@@ -6,7 +6,7 @@ import math
 import pytest
 from datetime import datetime, timedelta
 
-from gpx_art.models import Route, RoutePoint, RouteSegment, haversine_distance
+from route_to_art.models import Route, RoutePoint, RouteSegment, haversine_distance
 
 
 class TestHaversineDistance:

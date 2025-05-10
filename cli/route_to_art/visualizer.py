@@ -17,7 +17,7 @@ import matplotlib.patches as patches
 from matplotlib.figure import Figure
 from matplotlib.text import Text
 
-from gpx_art.models import Route, RoutePoint, RouteSegment
+from route_to_art.models import Route, RoutePoint, RouteSegment
 
 
 class OverlayPosition(Enum):

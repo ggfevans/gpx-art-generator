@@ -7,8 +7,8 @@ from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 from pathlib import Path
 
-from gpx_art.main import cli, get_config, get_effective_options
-from gpx_art.config import Config, ConfigError
+from route_to_art.main import cli, get_config, get_effective_options
+from route_to_art.config import Config, ConfigError
 
 
 @pytest.fixture
@@ -101,7 +101,7 @@ def malformed_config_file(tmp_path):
 @pytest.fixture
 def mock_config():
     """Mock Config class for testing."""
-    with patch('gpx_art.main._config', None):
+    with patch('route_to_art.main._config', None):
         # Reset the global config
         yield
 
@@ -109,7 +109,7 @@ def mock_config():
 @pytest.fixture
 def mock_gpx_parser():
     """Mock GPXParser for testing."""
-    with patch('gpx_art.main.GPXParser') as MockParser:
+    with patch('route_to_art.main.GPXParser') as MockParser:
         parser_instance = MagicMock()
         MockParser.return_value = parser_instance
         
@@ -127,7 +127,7 @@ def mock_gpx_parser():
 @pytest.fixture
 def mock_visualizer():
     """Mock RouteVisualizer for testing."""
-    with patch('gpx_art.main.RouteVisualizer') as MockVisualizer:
+    with patch('route_to_art.main.RouteVisualizer') as MockVisualizer:
         visualizer_instance = MagicMock()
         MockVisualizer.return_value = visualizer_instance
         
@@ -137,7 +137,7 @@ def mock_visualizer():
 @pytest.fixture
 def mock_exporter():
     """Mock Exporter for testing."""
-    with patch('gpx_art.main.Exporter') as MockExporter:
+    with patch('route_to_art.main.Exporter') as MockExporter:
         exporter_instance = MagicMock()
         MockExporter.return_value = exporter_instance
         
@@ -149,7 +149,7 @@ class TestConfigLoading:
     
     def test_global_config_option(self, runner, valid_config_file, mock_config):
         """Test that the --config option works at the global level."""
-        with patch('gpx_art.main.get_config') as mock_get_config:
+        with patch('route_to_art.main.get_config') as mock_get_config:
             result = runner.invoke(cli, ["--config", valid_config_file, "--help"])
             
             assert result.exit_code == 0
@@ -219,7 +219,7 @@ class TestEffectiveOptions:
             "defaults.export.formats": ["png", "svg"]
         }.get(key, default)
         
-        with patch('gpx_art.main.get_config', return_value=mock_config):
+        with patch('route_to_art.main.get_config', return_value=mock_config):
             options = get_effective_options(None, {
                 "color": None,
                 "thickness": None,
@@ -248,7 +248,7 @@ class TestEffectiveOptions:
             "defaults.color": "#FF5500"
         }.get(key, default)
         
-        with patch('gpx_art.main.get_config', return_value=mock_config):
+        with patch('route_to_art.main.get_config', return_value=mock_config):
             options = get_effective_options(None, {
                 "color": "#0000FF",  # CLI override
                 "thickness": None    # Use config default
@@ -267,7 +267,7 @@ class TestEffectiveOptions:
             "defaults.overlay.fields": ["distance", "elevation", "name"]
         }.get(key, default)
         
-        with patch('gpx_art.main.get_config', return_value=mock_config):
+        with patch('route_to_art.main.get_config', return_value=mock_config):
             options = get_effective_options(None, {
                 "overlay": None  # Use config default
             })
@@ -283,7 +283,7 @@ class TestEffectiveOptions:
             "defaults.export.formats": ["png", "svg", "pdf"]
         }.get(key, default)
         
-        with patch('gpx_art.main.get_config', return_value=mock_config):
+        with patch('route_to_art.main.get_config', return_value=mock_config):
             options = get_effective_options(None, {
                 "formats": None  # Use config default
             })
@@ -328,7 +328,7 @@ class TestConvertCommand:
             "defaults.export.formats": ["png", "svg"]
         }.get(key, default)
         
-        with patch('gpx_art.main.get_config', return_value=mock_config):
+        with patch('route_to_art.main.get_config', return_value=mock_config):
             output_path = tmp_path / "output"
             result = runner.invoke(cli, [
                 "--config", str(config_file),
@@ -376,7 +376,7 @@ class TestConvertCommand:
             "defaults.style": "dashed"
         }.get(key, default)
         
-        with patch('gpx_art.main.get_config', return_value=mock_config):
+        with patch('route_to_art.main.get_config', return_value=mock_config):
             output_path = tmp_path / "output"
             result = runner.invoke(cli, [
                 "--config", str(config_file),
