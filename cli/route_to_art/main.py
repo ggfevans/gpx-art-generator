@@ -8,19 +8,19 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Callable, TypeVar, cast
 
 # Import custom error handling and logging
-from gpx_art.config import Config
-from gpx_art.exceptions import (
-    GPXArtError, GPXParseError, ValidationError, 
+from route_to_art.config import Config
+from route_to_art.exceptions import (
+    RouteArtError, RouteParseError, ValidationError, 
     RenderingError, ExportError, ConfigError
 )
-from gpx_art.exporters import Exporter
-from gpx_art.logging import (
+from route_to_art.exporters import Exporter
+from route_to_art.logging import (
     configure_for_cli, log_info, log_debug, log_error, 
-    log_exception, log_warning, log_gpx_art_error
+    log_exception, log_warning, log_route_art_error
 )
-from gpx_art.models import Route
-from gpx_art.parsers import GPXParser
-from gpx_art.visualizer import RouteVisualizer
+from route_to_art.models import Route
+from route_to_art.parsers import RouteParser
+from route_to_art.visualizer import RouteVisualizer
 
 # Type variables for command handler decorator
 T = TypeVar('T')
@@ -29,7 +29,7 @@ CommandCallback = Callable[..., T]  # Type for command callbacks
 
 # Define the package version - will be used in the CLI's version option
 try:
-    __version__ = version("gpx-art")
+    __version__ = version("route-to-art")
 except Exception:
     __version__ = "0.1.0"  # Default fallback version
 
@@ -153,9 +153,9 @@ def handle_command_errors(f: CommandCallback) -> CommandCallback:
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return f(*args, **kwargs)
-        except GPXArtError as e:
+        except RouteArtError as e:
             # Log and display custom errors
-            log_gpx_art_error(e, module=f.__name__)
+            log_route_art_error(e, module=f.__name__)
             click.secho(str(e), fg="red")
             
             # Display suggestion if available
@@ -215,7 +215,7 @@ def handle_command_errors(f: CommandCallback) -> CommandCallback:
 )
 @click.pass_context
 def cli(ctx, config, verbose, debug, no_log_file):
-    """GPX Art Generator - Transform GPS routes into artwork."""
+    """Route-to-Art - Transform GPS routes into artwork."""
     # Initialize context
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
@@ -227,7 +227,7 @@ def cli(ctx, config, verbose, debug, no_log_file):
         log_to_file=not no_log_file
     )
     
-    log_info(f"Starting GPX Art Generator v{__version__}")
+    log_info(f"Starting Route-to-Art v{__version__}")
     
     # Try to load config to catch any errors early
     try:
@@ -343,12 +343,12 @@ def convert(
     overlay, overlay_position, font_size, font_color, background, bg_color, bg_alpha
 ):
     """
-    Convert GPX file to artwork in PNG, SVG, or PDF format.
+    Convert route data from a GPX-format file to artwork in PNG, SVG, or PDF format.
     
     CLI options override settings from the configuration file.
     Use --config to specify a configuration file.
     """
-    log_info(f"Converting GPX file: {input_file} to {output_file}")
+    log_info(f"Converting route from GPX file: {input_file} to {output_file}")
     log_debug("Convert options", data={
         "color": color,
         "thickness": thickness,
@@ -384,33 +384,33 @@ def convert(
     )
     
     # Parse GPX file
-    click.echo("Parsing GPX file...")
+    click.echo("Parsing route data from GPX-format file...")
     try:
-        parser = GPXParser(input_file)
-        gpx = parser.parse()
+        parser = RouteParser(input_file)
+        route_data = parser.parse()
         
-        if not gpx:
+        if not route_data:
             error_msg = parser.get_error()
-            raise GPXParseError.invalid_gpx(
+            raise RouteParseError.invalid_route_file(
                 error_msg, 
                 file_path=input_file
             )
         
         # Convert to internal model
-        route = parser.to_route(gpx)
+        route = parser.to_route(route_data)
         
         # Check if route has any segments
         if not route.segments:
-            raise GPXParseError.missing_track(file_path=input_file)
+            raise RouteParseError.missing_track(file_path=input_file)
             
         # Check if route has any points
         if not route.get_total_points():
-            raise GPXParseError.no_coordinates(file_path=input_file)
+            raise RouteParseError.no_coordinates(file_path=input_file)
             
     except Exception as e:
-        if not isinstance(e, GPXArtError):
-            # Wrap non-GPXArtError exceptions
-            raise GPXParseError.invalid_gpx(
+        if not isinstance(e, RouteArtError):
+            # Wrap non-RouteArtError exceptions
+            raise RouteParseError.invalid_route_file(
                 str(e), 
                 file_path=input_file,
                 original_error=e
@@ -668,20 +668,20 @@ def validate_timestamps(route: Route) -> List[str]:
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
 def validate(input_file):
-    """Validate GPX file."""
+    """Validate route data from GPX file."""
     # Parse the GPX file
-    parser = GPXParser(input_file)
-    gpx = parser.parse()
+    parser = RouteParser(input_file)
+    route_data = parser.parse()
     
-    if not gpx:
+    if not route_data:
         click.secho(f"Error: {parser.get_error()}", fg="red")
         sys.exit(1)
     
     # Convert to our model
-    route = parser.to_route(gpx)
+    route = parser.to_route(route_data)
     
     # Run validation checks
-    click.secho("\n=== GPX Validation Results ===", fg="blue", bold=True)
+    click.secho("\n=== Route Validation Results ===", fg="blue", bold=True)
     click.echo(f"File: {click.format_filename(os.path.abspath(input_file))}")
     
     # Run all validations
@@ -694,11 +694,11 @@ def validate(input_file):
     
     # Display validation status
     if not all_issues:
-        click.secho("\n✓ GPX file is valid", fg="green", bold=True)
+        click.secho("\n✓ Route data is valid", fg="green", bold=True)
         click.echo("No issues found")
         sys.exit(0)
     else:
-        click.secho(f"\n✗ Found {len(all_issues)} issues:", fg="red", bold=True)
+        click.secho(f"\n✗ Found {len(all_issues)} issues in route data:", fg="red", bold=True)
         
         # Display issues by category
         if segment_issues:
@@ -716,7 +716,7 @@ def validate(input_file):
             for issue in timestamp_issues:
                 click.echo(f"- {issue}")
         
-        click.echo("\nFix these issues to ensure proper processing of the GPX file.")
+        click.echo("\nFix these issues to ensure proper processing of the route data.")
         sys.exit(1)
 
 
@@ -771,20 +771,20 @@ def format_bounds(bounds):
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
 def info(input_file):
-    """Display GPX file information."""
+    """Display route information from GPX file."""
     # Parse the GPX file
-    parser = GPXParser(input_file)
-    gpx = parser.parse()
+    parser = RouteParser(input_file)
+    route_data = parser.parse()
     
-    if not gpx:
+    if not route_data:
         click.secho(f"Error: {parser.get_error()}", fg="red")
         sys.exit(1)
     
     # Convert to our model
-    route = parser.to_route(gpx)
+    route = parser.to_route(route_data)
     
     # Display file information
-    click.secho("\n=== GPX File Information ===", fg="green", bold=True)
+    click.secho("\n=== Route Information ===", fg="green", bold=True)
     click.echo(f"File: {click.format_filename(os.path.abspath(input_file))}")
     click.echo(f"Name: {route.name or 'Unnamed route'}")
     
@@ -816,7 +816,7 @@ def info(input_file):
 @click.option(
     "--path",
     type=click.Path(exists=False),
-    help="Path to create the config file. Defaults to ~/.gpx-art/config.yml"
+    help="Path to create the config file. Defaults to ~/.route-to-art/config.yml"
 )
 @click.option(
     "--force",

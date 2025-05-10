@@ -7,8 +7,8 @@ test:
 	pytest
 
 lint:
-	flake8 gpx_art
-	mypy gpx_art
+	flake8 route_to_art
+	mypy route_to_art
 
 format:
 	black .

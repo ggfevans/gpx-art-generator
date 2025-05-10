@@ -1,7 +1,7 @@
 """
-Exception hierarchy for gpx-art.
+Exception hierarchy for route-to-art.
 
-This module defines a comprehensive exception hierarchy for the gpx-art tool,
+This module defines a comprehensive exception hierarchy for the route-to-art tool,
 including specialized exceptions for different error types and error message
 templates for common errors.
 """
@@ -20,11 +20,11 @@ ERROR_MESSAGES = {
     'invalid_file_type': "Invalid file type for {path}. Expected {expected_types}.",
     'empty_file': "File is empty: {path}. Please provide a valid file.",
     
-    # GPX parsing errors
-    'invalid_gpx': "Invalid GPX file: {error}. The file may be corrupted.",
-    'missing_track': "No track data found in GPX file: {path}.",
-    'no_coordinates': "No coordinate data found in GPX file: {path}.",
-    'malformed_gpx': "Malformed GPX file: {path}. {error}",
+    # Route parsing errors
+    'invalid_route_file': "Invalid route file: {error}. The file may be corrupted.",
+    'missing_track': "No track data found in route file: {path}.",
+    'no_coordinates': "No coordinate data found in route file: {path}.",
+    'malformed_route_file': "Malformed route file: {path}. {error}",
     
     # Validation errors
     'invalid_color': "Invalid color value: {value}. Use hex format (e.g., #FF5500) or named colors.",
@@ -59,9 +59,9 @@ ERROR_MESSAGES = {
 }
 
 
-class GPXArtError(Exception):
+class RouteArtError(Exception):
     """
-    Base exception class for all gpx-art errors.
+    Base exception class for all route-to-art errors.
     
     This class provides context for errors, including the original error message,
     helpful suggestions, and relevant file paths.
@@ -76,7 +76,7 @@ class GPXArtError(Exception):
         context: Optional[Dict[str, Any]] = None
     ):
         """
-        Initialize a GPXArtError.
+        Initialize a RouteArtError.
         
         Args:
             message: The error message
@@ -118,7 +118,7 @@ class GPXArtError(Exception):
         suggestion: Optional[str] = None,
         file_path: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None
-    ) -> 'GPXArtError':
+    ) -> 'RouteArtError':
         """
         Create an error using a template from ERROR_MESSAGES.
         
@@ -131,7 +131,7 @@ class GPXArtError(Exception):
             context: Additional context information as a dictionary
             
         Returns:
-            A GPXArtError instance with the formatted message
+            A RouteArtError instance with the formatted message
             
         Raises:
             KeyError: If the template_key is not found in ERROR_MESSAGES
@@ -175,30 +175,30 @@ class GPXArtError(Exception):
         return re.findall(r'\{([^{}]+)\}', format_string)
 
 
-class GPXParseError(GPXArtError):
-    """Exception raised for errors during GPX file parsing."""
+class RouteParseError(RouteArtError):
+    """Exception raised for errors during route file parsing."""
     
     @classmethod
-    def invalid_gpx(
+    def invalid_route_file(
         cls, 
         error: str, 
         file_path: Optional[str] = None,
         original_error: Optional[Exception] = None
-    ) -> 'GPXParseError':
+    ) -> 'RouteParseError':
         """
-        Create an error for invalid GPX file.
+        Create an error for invalid route file.
         
         Args:
             error: Description of the parsing error
-            file_path: Path to the GPX file
+            file_path: Path to the route file
             original_error: The original exception that caused this error
             
         Returns:
-            A GPXParseError instance
+            A RouteParseError instance
         """
-        suggestion = "Check if the file is a valid GPX file. Try opening it in a text editor to verify its structure."
+        suggestion = "Check if the file is a valid route file. Try opening it in a text editor to verify its structure."
         return cls.from_template(
-            'invalid_gpx',
+            'invalid_route_file',
             {'error': error},
             original_error=original_error,
             suggestion=suggestion,
@@ -210,18 +210,18 @@ class GPXParseError(GPXArtError):
         cls,
         file_path: str,
         original_error: Optional[Exception] = None
-    ) -> 'GPXParseError':
+    ) -> 'RouteParseError':
         """
-        Create an error for GPX file with no track data.
+        Create an error for route file with no track data.
         
         Args:
-            file_path: Path to the GPX file
+            file_path: Path to the route file
             original_error: The original exception that caused this error
             
         Returns:
-            A GPXParseError instance
+            A RouteParseError instance
         """
-        suggestion = "Make sure the GPX file contains track segments (<trkseg>) with track points (<trkpt>)."
+        suggestion = "Make sure the route file contains track segments (<trkseg>) with track points (<trkpt>)."
         return cls.from_template(
             'missing_track',
             {'path': file_path},
@@ -235,18 +235,18 @@ class GPXParseError(GPXArtError):
         cls,
         file_path: str,
         original_error: Optional[Exception] = None
-    ) -> 'GPXParseError':
+    ) -> 'RouteParseError':
         """
-        Create an error for GPX file with no coordinate data.
+        Create an error for route file with no coordinate data.
         
         Args:
-            file_path: Path to the GPX file
+            file_path: Path to the route file
             original_error: The original exception that caused this error
             
         Returns:
-            A GPXParseError instance
+            A RouteParseError instance
         """
-        suggestion = "Make sure the GPX file contains track points with latitude and longitude attributes."
+        suggestion = "Make sure the route file contains track points with latitude and longitude attributes."
         return cls.from_template(
             'no_coordinates',
             {'path': file_path},
@@ -256,7 +256,7 @@ class GPXParseError(GPXArtError):
         )
 
 
-class ValidationError(GPXArtError):
+class ValidationError(RouteArtError):
     """Exception raised for validation errors."""
     
     @classmethod
@@ -346,7 +346,7 @@ class ValidationError(GPXArtError):
         )
 
 
-class RenderingError(GPXArtError):
+class RenderingError(RouteArtError):
     """Exception raised for errors during route rendering."""
     
     @classmethod
@@ -367,7 +367,7 @@ class RenderingError(GPXArtError):
         Returns:
             A RenderingError instance
         """
-        suggestion = "Check if matplotlib is installed correctly and try with a different GPX file."
+        suggestion = "Check if matplotlib is installed correctly and try with a different route file."
         return cls.from_template(
             'rendering_failure',
             {'error': error},
@@ -390,7 +390,7 @@ class RenderingError(GPXArtError):
         Returns:
             A RenderingError instance
         """
-        suggestion = "Make sure the GPX file contains valid track points with coordinate data."
+        suggestion = "Make sure the route file contains valid track points with coordinate data."
         return cls.from_template(
             'empty_route',
             {},
@@ -423,7 +423,7 @@ class RenderingError(GPXArtError):
         )
 
 
-class ExportError(GPXArtError):
+class ExportError(RouteArtError):
     """Exception raised for errors during file export."""
     
     @classmethod
